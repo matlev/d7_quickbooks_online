@@ -1,1 +1,7 @@
-name = Commerce QBO UI
+name = Quickbooks Online User Interface
+description = Provides a User Interface to allow site administrators to configure how their data is managed and sent to QuickBooks without having to write code.
+core = 7.x
+dependencies[] = qbo_api
+dependencies[] = commerce
+dependencies[] = rules
+configure = admin/commerce/commerce_qbo_ui/config

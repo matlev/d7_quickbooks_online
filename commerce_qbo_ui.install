@@ -1,0 +1,103 @@
+<?php
+/**
+ * @file
+ * Install, update and uninstall functions for the commerce_qbo_ui module.
+ */
+
+/**
+ * Implements hook_install()
+ */
+function commerce_qbo_ui_install() {
+    variable_set('commerce_qbo_ui_alert_pending_reports', 0);
+    variable_set('commerce_qbo_ui_logging', 0);
+    variable_set('commerce_qbo_ui_stage_premature_reports', 1);
+}
+
+/**
+ * Implement hook_schema()
+ */
+function commerce_qbo_ui_schema() {
+    $schema['commerce_qbo_ui_staged_report'] = array(
+        'description' => 'Table that stores pending reports triggered by Rules.',
+        'fields' => array(
+            'rid' => array(
+                'description' => 'Primary key for a report.',
+                'type' => 'serial',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'order_id' => array(
+                'description' => 'The {commerce_order}.order_id that is waiting to be created into a report.',
+                'type' => 'int',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'memo' => array(
+                'description' => 'A memo usually provided when creating a staging action rule to give them a hint later about what kind of report this should be sent as.',
+                'type' => 'varchar',
+                'length' => 127,
+                'not null' => FALSE,
+                'default' => '',
+            ),
+            'deleted' => array(
+                'description' => 'Flags the report as deleted/ignored.',
+                'type' => 'int',
+                'size' => 'tiny',
+                'default' => 0,
+            ),
+            'timestamp' => array(
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 0,
+                'description' => 'Unix timestamp of when event occurred.',
+            ),
+        ),
+        'primary key' => array('rid'),
+        'indexes' => array(
+            'order_id' => array('order_id'),
+        ),
+    );
+
+    $schema['commerce_qbo_ui_message_log'] = array(
+        'description' => 'Table that stores all messages returned by QuickBooks during an API call, if logging is enabled',
+        'fields' => array(
+            'mid' => array(
+                'description' => 'Primary key for a log message.',
+                'type' => 'serial',
+                'unsigned' => TRUE,
+                'not null' => TRUE,
+            ),
+            'message' => array(
+                'description' => 'The message content returned by QuickBooks',
+                'type' => 'text',
+                'size' => 'big',
+            ),
+            'timestamp' => array(
+                'type' => 'int',
+                'not null' => TRUE,
+                'default' => 0,
+                'description' => 'Unix timestamp of when event occurred.',
+            ),
+        ),
+        'primary key' => array('mid'),
+    );
+
+    return $schema;
+}
+
+/**
+ * Implements hook_uninstall()
+ */
+function commerce_qbo_ui_uninstall() {
+    // Unset any variables
+    $vars = array(
+        'commerce_qbo_ui_alert_pending_reports',
+        'commerce_qbo_ui_logging',
+        'commerce_qbo_ui_stage_premature_reports',
+        'commerce_qbo_ui_run',
+    );
+
+    foreach($vars as $var) {
+        variable_del($var);
+    }
+}
