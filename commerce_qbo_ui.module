@@ -93,12 +93,18 @@ function commerce_qbo_ui_permission() {
     $perms = array(
         'administer commerce qbo ui' => array(
             'title' => t('Administer Commerce QuickBooks Report rules'),
+            'restrict access' => TRUE,
         ),
         'view commerce qbo ui logs' => array(
             'title' => t('View QuickBooks Report Logs'),
         ),
         'administer commerce qbo ui staged reports' => array(
             'title' => t('Administer Pending Quickbooks Reports'),
+            'restrict access' => TRUE,
+        ),
+        'view commerce qbo ui messages' => array(
+            'title' => t('View messages displayed by the module'),
+            'description' => t('Displays information regarding report statuses on the page.  This should be limited to employees/site admins.'),
         ),
     );
 
@@ -121,6 +127,20 @@ function commerce_qbo_ui_forms($form_id, $args) {
 }
 
 /**
+ * Implements hook_form_FORM_ID_alter().
+ *
+ * Alter the Add New Rule form to have the tag field filled in with 'commerce qbo'
+ *
+ * @param $form
+ * @param $form_state
+ */
+function commerce_qbo_ui_form_commerce_qbo_ui_add_complete_rule_form_alter(&$form, &$form_state) {
+    unset($form['settings']['help']);
+    $form['settings']['tags']['#value'] = 'commerce qbo';
+    $form['submit']['#suffix'] = l(t('Cancel'), 'admin/commerce/config/checkout/rules');
+}
+
+/**
  * Implement hook_init().
  *
  * Displays a notification to permitted users that staged reports are awaiting action
@@ -133,9 +153,9 @@ function commerce_qbo_ui_init() {
                 ->condition('deleted', 0, '=')
                 ->execute();
 
-            if($result->rowCount()) {
-                $message = t("There are QuickBooks reports waiting to be processed, @link to manage them.",
-                    array('@link' => l(t('go to the queue'), "admin/commerce/commerce_qbo_ui/pending")));
+            if($result->rowCount() && user_access('view commerce qbo ui messages') && user_is_logged_in()) {
+                $message = t("There are QuickBooks reports waiting to be processed, !link to manage them.",
+                    array('!link' => l(t('go to the queue'), "admin/commerce/commerce_qbo_ui/pending")));
                 drupal_set_message($message, 'warning', FALSE);
             }
         }
@@ -149,19 +169,28 @@ function commerce_qbo_ui_init() {
 /**
  *
  *
- * @param $order_id
+ * @param $order
  * @param $report_type
  */
-function commerce_qbo_ui_send_report($order_id, $report_type) {
+function commerce_qbo_ui_send_report($order, $report_type) {
+    // We need to verify that the passed in parameter is the correct type
+    $order = commerce_qbo_ui_check_order($order);
+
     // If the API isn't set up then we cannot send any reports
     if(!variable_get('commerce_qbo_ui_run')) {
-        $message = t("Unable to send a @report report to QuickBooks until the API is fully configured.", array('@report' => $report_type));
-        drupal_set_message($message, 'warning', FALSE);
+        if(user_access('view commerce qbo ui messages')) {
+            $message = t("Unable to send a !report report to QuickBooks until the API is fully configured.", array('!report' => $report_type));
+            drupal_set_message($message, 'warning', FALSE);
+        }
 
         // Stage the report if the user chose that option
         if(variable_get('commerce_qbo_ui_stage_premature_reports')) {
-            commerce_qbo_ui_stage_report($order_id, $report_type);
+            commerce_qbo_ui_stage_report($order, $report_type);
         }
+    }
+    else if($order === FALSE) {
+        $message = t('Failed to send report.  A valid order object or ID is required, please review your Commerce QBO UI rules.');
+        watchdog('commerce_qbo_ui', $message, WATCHDOG_ERROR);
     }
     else {
 
@@ -169,35 +198,49 @@ function commerce_qbo_ui_send_report($order_id, $report_type) {
 }
 
 /**
- * @param $order_id
+ * @param $order
  * @param $memo
  */
-function commerce_qbo_ui_stage_report($order_id, $memo = '') {
-    // Warn the user that reports can only be sent with a configured API
-    if(!variable_get('commerce_qbo_ui_run', 0)) {
-        $message = t('The order has been staged, but you will be unable to send it until the QuickBooks Online API has been fully configured.');
-        drupal_set_message($message, 'warning', FALSE);
+function commerce_qbo_ui_stage_report($order, $memo = '') {
+    // We need to verify that the passed in parameter is the correct type
+    $order = commerce_qbo_ui_check_order($order);
+
+    if($order === FALSE) {
+        $message = t('Failed to store order data.  A valid order object or ID is required, please review your Commerce QBO UI rules.');
+        watchdog('commerce_qbo_ui', $message, WATCHDOG_ERROR);
     }
+    else {
+        // Warn the user that reports can only be sent with a configured API
+        if(!variable_get('commerce_qbo_ui_run', 0) && user_access('view commerce qbo ui messages')) {
+            $message = t('The order has been staged, but you will be unable to send it until the QuickBooks Online API has been fully configured.');
+            drupal_set_message($message, 'warning', FALSE);
+        }
 
-    // Ensures $memo doesn't exceed the maximum character limit
-    if(strlen($memo) > 127) {
-        $memo = substr($memo, 0, 123) . '...';
-    }
+        // We only want strings to be passed in
+        if(!is_string($memo)) {
+            $memo = "Staged order";
+        }
 
-    // Set this order into the staging table
-    db_insert('commerce_qbo_ui_staged_report', 'sr')
-        ->fields(array(
-            'order_id' => $order_id,
-            'memo' => $memo,
-            'timestamp' => time(),
-        ))
-        ->execute();
+        // Ensures $memo doesn't exceed the maximum character limit
+        if(strlen($memo) > 127) {
+            $memo = substr($memo, 0, 123) . '...';
+        }
 
-    // Display notification if option is selected
-    if(variable_get('commerce_qbo_ui_alert_pending_reports', 0)) {
-        $message = t("There are QuickBooks reports waiting to be processed, @link to manage them.",
-            array('@link' => l(t('go to the queue'), "admin/commerce/commerce_qbo_ui/staged_report")));
-        drupal_set_message($message, 'warning', FALSE);
+        // Set this order into the staging table
+        db_insert('commerce_qbo_ui_staged_report')
+            ->fields(array(
+                'order_id' => $order,
+                'memo' => $memo,
+                'timestamp' => time(),
+            ))
+            ->execute();
+
+        // Display notification if option is selected
+        if(variable_get('commerce_qbo_ui_alert_pending_reports', 0)) {
+            $message = t("There are QuickBooks reports waiting to be processed, !link to manage them.",
+                array('!link' => l(t('go to the queue'), "admin/commerce/commerce_qbo_ui/staged_report")));
+            drupal_set_message($message, 'warning', FALSE);
+        }
     }
 }
 
@@ -206,15 +249,43 @@ function commerce_qbo_ui_stage_report($order_id, $memo = '') {
  + ------------------------------------------- */
 
 /**
- * Alter the Add New Rule form to have the tag field filled in with 'commerce qbo'
+ * Returns an order_id if the rule action passed a valid value
  *
- * @param $form
- * @param $form_state
+ * Accepted values:
+ *  - Order Object
+ *  - Valid Integer order_id
+ *  - Valid String value of order_id
+ *
+ * @param $arg
+ *   The value passed through by the rule action
+ * @return bool|int
+ *   The numeric order_id if a valid input, FALSE otherwise
  */
-function commerce_qbo_ui_form_commerce_qbo_ui_add_complete_rule_form_alter(&$form, &$form_state) {
-    unset($form['settings']['help']);
-    $form['settings']['tags']['#value'] = 'commerce qbo';
-    $form['submit']['#suffix'] = l(t('Cancel'), 'admin/commerce/config/checkout/rules');
+function commerce_qbo_ui_check_order($arg) {
+    $return = FALSE;
+
+    if(is_object($arg)) {
+        if(isset($arg->type)) {
+            // The argument is an entity wrapper, so we must use raw() to access the data
+            if(method_exists($arg->type, 'raw')) {
+                if($arg->type->raw() == 'commerce_order') {
+                    $return = $arg->order_id->raw();
+                }
+            }
+            // The argument is a regular object, we can access the fields directly
+            else if($arg->type == 'commerce_order') {
+                $return = $arg->order_id;
+            }
+        }
+    }
+    else if(is_int($arg) || is_string($arg)) {
+        $arg *= 1;
+        if(commerce_order_load($arg)) {
+            $return = $arg;
+        }
+    }
+
+    return $return;
 }
 
 /**

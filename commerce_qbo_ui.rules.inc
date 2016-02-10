@@ -41,7 +41,7 @@ function commerce_qbo_ui_rules_action_info() {
             'group' => 'Commerce Quickbooks Online',
             'parameter' => array(
                 'order_id' => array(
-                    'type' => 'entity',
+                    'type' => 'commerce_order',
                     'label' => 'The order object',
                 ),
                 'report_type' => array(
@@ -64,7 +64,7 @@ function commerce_qbo_ui_rules_action_info() {
             'group' => 'Commerce Quickbooks Online',
             'parameter' => array(
                 'order_id' => array(
-                    'type' => 'entity',
+                    'type' => 'commerce_order',
                     'label' => 'The order object',
                 ),
                 'memo' => array(
