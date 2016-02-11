@@ -48,7 +48,10 @@ function commerce_qbo_ui_rules_action_info() {
           'type' => 'text',
           'label' => t("The type of report to send"),
           'options list' => 'commerce_qbo_ui_rule_action_report_options',
-          'default value' => 'invoice',
+          'default value' => '',
+          'description' => t('This list is populated by Report Types. !link',
+            array('!link' => l(t('Create a Report Type.'), "admin/commerce/commerce_qbo_ui/report_types"))
+          ),
         ),
       ),
       'provides' => array(
@@ -70,7 +73,7 @@ function commerce_qbo_ui_rules_action_info() {
         'memo' => array(
           'type' => 'text',
           'label' => 'Memo for pending report',
-          'description' => 'Should be a description of what kind of report you want this to be sent as.',
+          'description' => t('Should be a description of what kind of report you want this to be sent as.'),
           'default value' => 'invoice',
         ),
       ),
@@ -82,16 +85,23 @@ function commerce_qbo_ui_rules_action_info() {
  * Returns a list of available report type options
  *
  * @return array
- * @TODO: Return only the names of existing user-created report types
  */
 function commerce_qbo_ui_rule_action_report_options() {
-  $options = array(
-    'invoice' => t('Invoice'),
-    'payment' => t('Payment'),
-    'estimate' => t('Estimate'),
-    'credit_memo' => t('Credit Memo'),
-    'refund' => t('Refund'),
-  );
+  $options = array();
+
+  $report_types = db_select('commerce_qbo_ui_report_types', 'rt')
+    ->fields('rt', array('rtid', 'name'))
+    ->condition('active', 1, '=')
+    ->execute();
+
+  if($report_types->rowCount()) {
+    while($row = $report_types->fetchAssoc()) {
+      $options[$row['rtid']] = $row['name'];
+    }
+  }
+  else {
+    $options[''] = t('No report types available');
+  }
 
   return $options;
 }
