@@ -4,28 +4,28 @@
  * Displays the active rules
  */
 function commerce_qbo_ui_active_rules() {
-    commerce_qbo_ui_ready_check();
+  commerce_qbo_ui_ready_check();
 
-    RulesPluginUI::$basePath = 'admin/commerce/commerce_qbo_ui/rules';
-    $options = array('show plugin' => FALSE);
+  RulesPluginUI::$basePath = 'admin/commerce/commerce_qbo_ui/rules';
+  $options = array('show plugin' => FALSE);
 
-    $content['enabled']['title']['#markup'] = '<h3>' . t('Enabled QuickBooks Report rules') . '</h3>';
+  $content['enabled']['title']['#markup'] = '<h3>' . t('Enabled QuickBooks Report rules') . '</h3>';
 
-    $conditions = array('tags' => array('commerce qbo'), 'plugin' => 'reaction rule', 'active' => TRUE);
-    $content['enabled']['rules'] = RulesPluginUI::overviewTable($conditions, $options);
-    $content['enabled']['rules']['#empty'] = t('There are no active QuickBooks report rules.');
+  $conditions = array('tags' => array('commerce qbo'), 'plugin' => 'reaction rule', 'active' => TRUE);
+  $content['enabled']['rules'] = RulesPluginUI::overviewTable($conditions, $options);
+  $content['enabled']['rules']['#empty'] = t('There are no active QuickBooks report rules.');
 
-    $content['disabled']['title']['#markup'] = '<h3>' . t('Disabled QuickBooks Report rules') . '</h3>';
+  $content['disabled']['title']['#markup'] = '<h3>' . t('Disabled QuickBooks Report rules') . '</h3>';
 
-    $conditions['active'] = FALSE;
-    $content['disabled']['rules'] = RulesPluginUI::overviewTable($conditions, $options);
-    $content['disabled']['rules']['#empty'] = t('There are no disabled QuickBooks Report rules.');
+  $conditions['active'] = FALSE;
+  $content['disabled']['rules'] = RulesPluginUI::overviewTable($conditions, $options);
+  $content['disabled']['rules']['#empty'] = t('There are no disabled QuickBooks Report rules.');
 
-    // Store the function name in the content array to make it easy to alter the
-    // contents of this page.
-    $content['#page_callback'] = 'commerce_qbo_ui_active_rules';
+  // Store the function name in the content array to make it easy to alter the
+  // contents of this page.
+  $content['#page_callback'] = 'commerce_qbo_ui_active_rules';
 
-    return $content;
+  return $content;
 }
 
 /**
@@ -35,50 +35,50 @@ function commerce_qbo_ui_active_rules() {
  * @param $form_state
  */
 function commerce_qbo_ui_config($form, &$form_state) {
-    commerce_qbo_ui_ready_check();
+  commerce_qbo_ui_ready_check();
 
-    // For capturing fail/success messages from QuickBooks Online
-    $form['commerce_qbo_ui_logging'] = array(
-        '#description' => t('Enable/disable message logging from QuickBooks API calls.'),
-        '#type' => 'radios',
-        '#title' => t('Save data-transfer logs'),
-        '#options' => array(
-            0 => t("No"),
-            1 => t("Yes"),
-        ),
-        '#default_value' => variable_get('commerce_qbo_ui_logging', 0),
-        '#required' => TRUE,
-    );
+  // For capturing fail/success messages from QuickBooks Online
+  $form['commerce_qbo_ui_logging'] = array(
+    '#description' => t('Enable/disable message logging from QuickBooks API calls.'),
+    '#type' => 'radios',
+    '#title' => t('Save data-transfer logs'),
+    '#options' => array(
+      0 => t("No"),
+      1 => t("Yes"),
+    ),
+    '#default_value' => variable_get('commerce_qbo_ui_logging', 0),
+    '#required' => TRUE,
+  );
 
-    // A safety net for transferring reports to staging
-    $form['commerce_qbo_ui_stage_premature_reports'] = array(
-        '#description' => t('If enabled, any reports that are sent before the module is fully ' .
-            'configured will be caught and passed into staging instead.<br><em>You will still ' .
-            'be unable to send these reports until configuration is complete.</em>'),
-        '#type' => 'radios',
-        '#title' => t('Catch reports sent too early'),
-        '#options' => array(
-            0 => t('No'),
-            1 => t('Yes'),
-        ),
-        '#default_value' => variable_get('commerce_qbo_ui_stage_premature_reports', 1),
-        '#required' => TRUE,
-    );
+  // A safety net for transferring reports to staging
+  $form['commerce_qbo_ui_stage_premature_reports'] = array(
+    '#description' => t('If enabled, any reports that are sent before the module is fully ' .
+      'configured will be caught and passed into staging instead.<br><em>You will still ' .
+      'be unable to send these reports until configuration is complete.</em>'),
+    '#type' => 'radios',
+    '#title' => t('Catch reports sent too early'),
+    '#options' => array(
+      0 => t('No'),
+      1 => t('Yes'),
+    ),
+    '#default_value' => variable_get('commerce_qbo_ui_stage_premature_reports', 1),
+    '#required' => TRUE,
+  );
 
-    // Warn privileged users when reports are pending action
-    $form['commerce_qbo_ui_alert_pending_reports'] = array(
-        '#description' => t('Optionally display a persistent notification when reports are in the staging area.'),
-        '#type' => 'radios',
-        '#title' => t('Display notification when reports are in the staging queue'),
-        '#options' => array(
-            0 => t('No'),
-            1 => t('Yes'),
-        ),
-        '#default_value' => variable_get('commerce_qbo_ui_alert_pending_reports', 0),
-        '#required' => TRUE,
-    );
+  // Warn privileged users when reports are pending action
+  $form['commerce_qbo_ui_alert_pending_reports'] = array(
+    '#description' => t('Optionally display a persistent notification when reports are in the staging area.'),
+    '#type' => 'radios',
+    '#title' => t('Display notification when reports are in the staging queue'),
+    '#options' => array(
+      0 => t('No'),
+      1 => t('Yes'),
+    ),
+    '#default_value' => variable_get('commerce_qbo_ui_alert_pending_reports', 0),
+    '#required' => TRUE,
+  );
 
-    return system_settings_form($form);
+  return system_settings_form($form);
 }
 
 /**
@@ -93,7 +93,29 @@ function commerce_qbo_ui_config($form, &$form_state) {
  * If the QBO API is missing the neccessary app tokens then the module will not allow reports to be sent
  */
 function commerce_qbo_ui_pending_reports() {
+  commerce_qbo_ui_ready_check();
 
+  $rows = array();
+
+  $reports_pending = db_select('commerce_qbo_ui_staged_report', 'sr')
+    ->fields('sr', array('rid', 'order_id', 'memo'))
+    ->condition('deleted', 0, '=')
+    ->execute();
+
+  $report_types = db_select('commerce_qbo_ui_report_types', 'rt')
+      ->fields('rt', array('rtid', 'name'))
+      ->condition('active', 1, '=')
+      ->execute();
+
+  $rows = _commerce_qbo_ui_generate_sr_rows($reports_pending, $report_types);
+
+  $build['commerce_qbo_ui_table'] = array(
+    '#theme' => 'commerce_qbo_ui_staged_reports_table',
+    'rows' => $rows,
+  );
+  $build['commerce_qbo_ui_pager'] = array('#theme' => 'pager');
+
+  return $build;
 }
 
 /**
@@ -107,44 +129,44 @@ function commerce_qbo_ui_reports_builder() {
  * Prints any logs returned from QuickNooks
  */
 function commerce_qbo_ui_display_logs() {
-    commerce_qbo_ui_ready_check();
+  commerce_qbo_ui_ready_check();
 
-    $rows = array();
-    $header = array(
-        '', // Icon column.
-        array('data' => t('Date'), 'field' => 'l.mid', 'sort' => 'desc'),
-        t('Message'),
+  $rows = array();
+  $header = array(
+    '', // Icon column.
+    array('data' => t('Date'), 'field' => 'l.mid', 'sort' => 'desc'),
+    t('Message'),
+  );
+
+  $query = db_select('commerce_qbo_ui_message_log', 'l')->extend('PagerDefault')->extend('TableSort');
+  $query->fields('l', array('mid', 'message', 'timestamp',));
+
+  $result = $query
+    ->limit(50)
+    ->orderByHeader($header)
+    ->execute();
+
+  foreach($result as $qbo_log) {
+    $rows[] = array('data' =>
+      array(
+        // Cells
+        array('class' => 'icon'),
+        format_date($qbo_log->timestamp, 'short'),
+        $qbo_log->message,
+      ),
+      // Attributes for tr
+      'class' => array(drupal_html_class('qbo-log-message')),
     );
+  }
 
-    $query = db_select('commerce_qbo_ui_message_log', 'l')->extend('PagerDefault')->extend('TableSort');
-    $query->fields('l', array('mid', 'message', 'timestamp',));
+  $build['commerce_qbo_ui_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#attributes' => array('id' => 'admin-commerce-qbo-ui-log'),
+    '#empty' => t('No log messages available.'),
+  );
+  $build['commerce_qbo_ui_pager'] = array('#theme' => 'pager');
 
-    $result = $query
-        ->limit(50)
-        ->orderByHeader($header)
-        ->execute();
-
-    foreach ($result as $qbo_log) {
-        $rows[] = array('data' =>
-            array(
-                // Cells
-                array('class' => 'icon'),
-                format_date($qbo_log->timestamp, 'short'),
-                $qbo_log->message,
-            ),
-            // Attributes for tr
-            'class' => array(drupal_html_class('qbo-log-message')),
-        );
-    }
-
-    $build['commerce_qbo_ui_table'] = array(
-        '#theme' => 'table',
-        '#header' => $header,
-        '#rows' => $rows,
-        '#attributes' => array('id' => 'admin-commerce-qbo-ui-log'),
-        '#empty' => t('No log messages available.'),
-    );
-    $build['commerce_qbo_ui_pager'] = array('#theme' => 'pager');
-
-    return $build;
+  return $build;
 }
