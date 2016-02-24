@@ -120,7 +120,7 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
         ->fetchAssoc();
 
       $order_id = $result['rid'];
-      $report_type = $form_state['values']['commerce_qbo_ui_report_types'];
+      $report_type = $form_state['values']['commerce_qbo_ui_report_type'];
 
       commerce_qbo_ui_send_report($order_id, $report_type);
     }
@@ -133,9 +133,9 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
     ->condition('deleted', 0, '=')
     ->execute();
 
-  $report_types = db_select('commerce_qbo_ui_report_types', 'rt')
+  $report_types = db_select('commerce_qbo_ui_report', 'rt')
       ->fields('rt', array('rtid', 'name'))
-      ->condition('active', 1, '=')
+      ->condition('status', 1, '=')
       ->execute();
 
   $rows = _commerce_qbo_ui_generate_sr_rows($reports_pending, $report_types);
@@ -150,10 +150,44 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
 }
 
 /**
- *
+ * Displays all existing QuickBooks Reports, allowing users to edit,
+ * delete or add new Reports
  */
-function commerce_qbo_ui_reports_builder() {
+function commerce_qbo_ui_reports_overview() {
+  // Get all created qb_reports
+  $query = db_select('commerce_qbo_ui_report', 'r');
+  $query->leftJoin('commerce_qbo_ui_report_type', 'rt', 'r.report_type = rt.type');
+  $results = $query
+    ->fields('r', array('rtid', 'name'))
+    ->fields('rt', array('name'))
+    ->condition('r.status', 1, '=')
+    ->execute();
 
+  $header = array(t('Name'), t('Type of Report'), array('data' => t('Operations'), 'colspan' => '2'));
+  $rows = array();
+
+  while($qb_report = $results->fetchAssoc()) {
+    $name = $qb_report['name'];
+
+    $row = array($name);
+    $row[] = $qb_report['rt_name'];
+
+    // Set the op columns.
+    $row[] = array('data' => l(t('edit'), 'admin/commerce/commerce_qbo_ui/qb_reports/' . $qb_report['rtid']));
+    $row[] = array('data' => l(t('delete'), 'admin/commerce/commerce_qbo_ui/qb_reports/' . $qb_report['rtid'] . '/delete'));
+
+
+    $rows[] = $row;
+  }
+
+  $build['commerce_qbo_ui_qb_report_table'] = array(
+    '#theme' => 'table',
+    '#header' => $header,
+    '#rows' => $rows,
+    '#empty' => t('No reports available. <a href="@link">Add a report</a>.', array('@link' => url('admin/commerce/commerce_qbo_ui/qb_reports/add'))),
+  );
+
+  return $build;
 }
 
 /**

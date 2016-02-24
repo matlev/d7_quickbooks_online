@@ -89,7 +89,7 @@ function commerce_qbo_ui_rules_action_info() {
 function commerce_qbo_ui_rule_action_report_options() {
   $options = array();
 
-  $report_types = db_select('commerce_qbo_ui_report_types', 'rt')
+  $report_types = db_select('commerce_qbo_ui_report', 'rt')
     ->fields('rt', array('rtid', 'name'))
     ->condition('active', 1, '=')
     ->execute();

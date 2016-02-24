@@ -8,16 +8,687 @@
  * Implements hook_install()
  */
 function commerce_qbo_ui_install() {
-  variable_set('commerce_qbo_ui_alert_pending_reports', 0);
-  variable_set('commerce_qbo_ui_logging', 0);
-  variable_set('commerce_qbo_ui_stage_premature_reports', 1);
+  // Settings config
+  // We first check to see if the variables already exist and store their
+  // values to use in the variable_set() block, because we reload the install
+  // function during hook_flush_caches().
+  $alert = variable_get('commerce_qbo_ui_alert_pending_reports', 0);
+  $logging = variable_get('commerce_qbo_ui_logging', 0);
+  $stage = variable_get('commerce_qbo_ui_stage_premature_reports', 1);
+
+  variable_set('commerce_qbo_ui_alert_pending_reports', $alert);
+  variable_set('commerce_qbo_ui_logging', $logging);
+  variable_set('commerce_qbo_ui_stage_premature_reports', $stage);
+}
+
+/**
+ * Implements hook_enable().
+ *
+ * Creates the bundles and their fields for the QuickBooks Reports entity
+ */
+function commerce_qbo_ui_enable() {
+  // Check for the existence of bundles before creating them
+  if(empty(field_info_bundles('qb_report'))) {
+    // Create the QuickBooks Report types
+    $qb_report_types = array();
+
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('estimate', 'Estimate', t('A report that sends an estimate to the customer.  This is not final and does not require payment.'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('invoice', 'Invoice', t('A report that sends an invoice to a customer.  This expects a payment by the given due date'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('payment', 'Payment', t('A receipt for a customer confirming their payment has been made.'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('refund', 'Refund', t('A receipt of refund to a customer'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('credit_memo', 'Credit Memo', t('A receipt of credit that the given customer has with your business.'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('sales_receipt', 'Sales Receipt', t('A sales receipt for the customer\'s and your financial records.'));
+
+    commerce_qbo_ui_qb_report_type_save($qb_report_types);
+  }
+
+  // Create and configure the fields for each bundle
+  commerce_qbo_ui_configure_entity_fields();
+}
+
+/**
+ * Implements hook_disable().
+ *
+ * Clears the static cache
+ */
+function commerce_qbo_ui_disable() {
+  // A list of static variables this module uses
+  $static_vars = array(
+    '_commerce_qbo_ui_configure_bundle_fields',
+    '_commerce_qbo_ui_configure_line_item_field',
+    '_commerce_qbo_ui_configure_line_item_field_line_item_types',
+  );
+
+  foreach($static_vars as $var) {
+    drupal_static_reset($var);
+  }
+}
+
+/**
+ * Sets up the fields for the QuickBooks Reports entity bundles
+ */
+function commerce_qbo_ui_configure_entity_fields() {
+  $qb_report_types = _commerce_qbo_ui_report_types();
+
+  foreach ($qb_report_types as $report_type) {
+    _commerce_qbo_ui_configure_line_item_field($report_type['type']);
+    _commerce_qbo_ui_configure_bundle_fields($report_type['type']);
+  }
+}
+
+/**
+ * Creates and configures a field collection for the given bundle
+ *
+ * For all Transaction types except 'Payment', receipt displays a Line with the
+ * following columns:
+ *   - Product/Service
+ *     A label for the Line.  Can be anything; typically a product title or SKU
+ *   - Description
+ *     A description of the Line.  Often used to add product description data
+ *     to a product, the name of a shipping method, coupon code, etc.
+ *   - Quantity
+ *     A measure of how many of the item is in the order.  This should be 0 for
+ *     strictly descriptive lines.
+ *   - Rate
+ *     A value for the cost per unit of this Line.  Used to calculate Amount
+ *   - Amount (not a field)
+ *     A value equal to Quantity * Rate
+ *   - Tax (not a field)
+ *     A checkbox denoting whether or not tax applies to this Line
+ *
+ * @param $bundle
+ */
+function _commerce_qbo_ui_configure_line_item_field($bundle) {
+  // Payment transactions don't use this particular Line
+  if($bundle == 'payment') {
+    return;
+  }
+
+  $t = get_t();
+  $module = "c_qbo_ui"; // Shortened to comply with 32 char max. for field names
+
+  // Get static caches if they exist
+  $line_item_types = &drupal_static(__FUNCTION__ . '_line_item_types');
+  $fields_array = &drupal_static(__FUNCTION__);
+  $build_fields = TRUE;
+
+  // It's not enough to check the static cache, because the fields array
+  // depends on the existing line item types.  So we first check to see if the
+  // types have changed names or additions/deletions have been made.
+  if(isset($line_item_types)) {
+    $current_line_items = commerce_line_item_type_get_name();
+    if($line_item_types == $current_line_items) {
+      $build_fields = FALSE;
+    }
+  }
+  else {
+    $line_item_types = commerce_line_item_type_get_name();
+  }
+
+  // Builds the fields if the line items have changed or this is our first run
+  if($build_fields) {
+    $fields_array = array(
+      // Field Collection field
+      array(
+        'field' => array(
+          'field_name' => $module . '_line_item_collection',
+          'label' => $t('QuickBooks Online Line Item'),
+          'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+          'type' => 'field_collection',
+        ),
+        'instance' => array(
+          'field_name' => $module . '_line_item_collection',
+          'entity_type' => 'qb_report',
+          'bundle' => '',
+          'label' => $t('QuickBooks Online Line Item'),
+          'description' => '',
+          'widget' => array(
+            'type' => 'field_collection_embed',
+            'weight' => 10,
+          ),
+          'required' => 0,
+        ),
+      ),
+
+      // Field Collection items
+      array(
+        'field' => array(
+          'field_name' => $module . '_line_item_type',
+          'type' => 'list_text',
+          'settings' => array(
+            'allowed_values' => commerce_line_item_type_get_name(),
+          ),
+          'cardinality' => 1,
+        ),
+        'instance' => array(
+          'field_name' => $module . '_line_item_type',
+          'entity_type' => 'field_collection_item',
+          'bundle' => $module . '_line_item_collection',
+          'label' => 'Line item to create QBO Line for',
+          'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+          'description' => $t('Choose what Order line item this Line should be generated from.'),
+          'widget' => array('type' => 'options_select'),
+          'commerce_cart_settings' => array('attribute_field' => 0),
+          'required' => 0,
+        )
+      ),
+      array(
+        'field' => array(
+          'field_name' => $module . '_product_service',
+          'type' => 'text',
+          'cardinality' => 1,
+        ),
+        'instance' => array(
+          'field_name' => $module . '_product_service',
+          'entity_type' => 'field_collection_item',
+          'bundle' => $module . '_line_item_collection',
+          'label' => $t('Product/Service'),
+          'cardinality' => 1,
+          'description' => $t('A label for the line item'),
+          'widget' => array(
+            'type' => 'text_textfield',
+            'settings' => array('size' => 63)
+          ),
+          'settings' => array(
+            'text_processing' => 0,
+            'max_length' => 63,
+          ),
+          'required' => 1,
+        ),
+      ),
+      array(
+        'field' => array(
+          'field_name' => $module . '_line_description',
+          'type' => 'text_long',
+          'cardinality' => 1,
+        ),
+        'instance' => array(
+          'field_name' => $module . '_line_description',
+          'entity_type' => 'field_collection_item',
+          'bundle' => $module . '_line_item_collection',
+          'label' => 'Description',
+          'cardinality' => 1,
+          'description' => 'Product and line item fields can be substituted by enclosing the field name in square brackets and prefixing with a colon (ex [:field_sku]).',
+          'widget' => array(
+            'type' => 'text_textarea',
+            'rows' => 10,
+          ),
+          'settings' => array('text_processing' => 0),
+          'required' => 1,
+        ),
+      ),
+      array(
+        'field' => array(
+          'field_name' => $module . '_line_quantity',
+          'type' => 'text',
+          'cardinality' => 1,
+        ),
+        'instance' => array(
+          'field_name' => $module . '_line_quantity',
+          'entity_type' => 'field_collection_item',
+          'bundle' => $module . '_line_item_collection',
+          'label' => $t('Quantity'),
+          'cardinality' => 1,
+          'description' => $t('If left blank, this field will attempt to default to the quantity of the current Commerce Order line item being processed.'),
+          'widget' => array(
+            'type' => 'text_textfield',
+            'settings' => array('size' => 10,)
+          ),
+          'settings' => array(
+            'text_processing' => 0,
+            'max_length' => 10,
+          ),
+          'required' => 0,
+        ),
+      ),
+      array(
+        'field' => array(
+          'field_name' => $module . '_line_rate',
+          'type' => 'text',
+          'cardinality' => 1,
+        ),
+        'instance' => array(
+          'field_name' => $module . '_line_rate',
+          'entity_type' => 'field_collection_item',
+          'bundle' => $module . '_line_item_collection',
+          'label' => $t('Rate'),
+          'cardinality' => 1,
+          'description' => $t('If left blank, this field will attempt to default to the rate of the current Commerce Order line item being processed.'),
+          'widget' => array(
+            'type' => 'text_textfield',
+            'settings' => array('size' => 10,)
+          ),
+          'settings' => array(
+            'text_processing' => 0,
+            'max_length' => 10,
+          ),
+          'required' => 0,
+        ),
+      ),
+    );
+  }
+
+  // Set the collection bundle to the current qb_report bundle
+  $fields_array[0]['instance']['bundle'] = $bundle;
+
+  // Loop through fields array and create fields and instances
+  foreach ($fields_array as $field) {
+    // Check if field already exists
+    if (!field_info_field($field['field']['field_name'])) {
+      field_create_field($field['field']);
+    }
+
+    // Check if instance exists
+    if (!field_info_instance($field['instance']['entity_type'], $field['instance']['field_name'], $field['instance']['bundle'])) {
+      field_create_instance($field['instance']);
+    }
+  }
+}
+
+/**
+ * Builds and configures the various fields used by qb_report bundles
+ *
+ * @param $bundle
+ * @throws Exception
+ * @throws FieldException
+ */
+function _commerce_qbo_ui_configure_bundle_fields($bundle) {
+  $t = get_t();
+
+  $bundle_fields = &drupal_static(__FUNCTION__);
+  $module = "commerce_qbo_ui";
+
+  if(!isset($bundle_fields)) {
+    // We need to set up the bundle fields for the first time
+    $bundle_fields = array(
+      'all' => array(
+        array(
+          'field' => array(
+            'field_name' => $module . '_sales_rep',
+            'type' => 'text',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_sales_rep',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => $t('Sales Rep'),
+            'cardinality' => 1,
+            'description' => $t('Name of sales rep for this order'),
+            'widget' => array(
+              'type' => 'text_textfield',
+              'settings' => array('size' => 63)
+            ),
+            'settings' => array(
+              'text_processing' => 0,
+              'max_length' => 63,
+            ),
+            'required' => 0,
+          ),
+        ),
+        array(
+          'field' => array(
+            'field_name' => $module . '_po_number',
+            'type' => 'text',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_po_number',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => $t('P.O. #'),
+            'cardinality' => 1,
+            'description' => '',
+            'widget' => array(
+              'type' => 'text_textfield',
+              'settings' => array('size' => 15)
+            ),
+            'settings' => array(
+              'text_processing' => 0,
+              'max_length' => 15,
+            ),
+            'required' => 0,
+          ),
+        ),
+        array(
+          'field' => array(
+            'field_name' => $module . '_message',
+            'type' => 'text_long',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_message',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => $t('Sales Rep'),
+            'cardinality' => 1,
+            'description' => $t('A message the customer sees when viewing this report. Accepts field tokens (ex. [:field_name])'),
+            'widget' => array(
+              'type' => 'text_textarea',
+              'rows' => 10,
+              'weight' => 11,
+            ),
+            'settings' => array('text_processing' => 0),
+            'required' => 0,
+          ),
+        ),
+        array(
+          'field' => array(
+            'field_name' => $module . '_memo',
+            'type' => 'text_long',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_memo',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => $t('Memo'),
+            'cardinality' => 1,
+            'description' => $t('A private memo for accountants. Accepts field tokens (ex. [:field_name])'),
+            'widget' => array(
+              'type' => 'text_textarea',
+              'rows' => 10,
+              'weight' => 12,
+            ),
+            'settings' => array('text_processing' => 0),
+            'required' => 0,
+          ),
+        ),
+        array(
+          // @TODO: This field should be a select list of tax rates pulled from
+          //   QuickBooks, with the description changed to "select auto for"
+          //   letting the system apply tax based on checkout rules.
+          'field' => array(
+            'field_name' => $module . '_tax_type',
+            'type' => 'text',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_tax_type',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => 'Tax Code',
+            'cardinality' => 1,
+            'description' => $t('To manually select a tax rate to always apply ' .
+              'to this transaction, enter a valid tax code as defined in your ' .
+              'QuickBooks Online account.  Leave blank if the system should ' .
+              'apply tax conditionally based on checkout rules.'),
+            'widget' => array(
+              'type' => 'text_textfield',
+              'settings' => array('size' => 15),
+              'weight' => 9,
+            ),
+            'settings' => array(
+              'text_processing' => 0,
+              'max_length' => 15,
+            ),
+            'required' => 0,
+          ),
+        ),
+      ),
+      'estimate' => array(
+        _commerce_qbo_ui_add_transaction_date_field($module),
+        _commerce_qbo_ui_add_expiration_date_field($module),
+        _commerce_qbo_ui_add_ship_via_field($module),
+        _commerce_qbo_ui_add_shipping_date_field($module),
+      ),
+      'invoice' => array(
+        _commerce_qbo_ui_add_transaction_date_field($module),
+        _commerce_qbo_ui_add_expiration_date_field($module, "Due Date"),
+        _commerce_qbo_ui_add_ship_via_field($module),
+        _commerce_qbo_ui_add_shipping_date_field($module),
+      ),
+      'payment' => array(
+        _commerce_qbo_ui_add_transaction_date_field($module),
+        _commerce_qbo_ui_add_deposit_account_field($module),
+      ),
+      'sales_receipt' => array(
+        _commerce_qbo_ui_add_transaction_date_field($module),
+        _commerce_qbo_ui_add_ship_via_field($module),
+        _commerce_qbo_ui_add_shipping_date_field($module),
+        _commerce_qbo_ui_add_deposit_account_field($module),
+      ),
+      'credit_memo' => array(), // No unique fields as of 02/22/16
+      'refund' => array(
+        _commerce_qbo_ui_add_transaction_date_field($module),
+        array(
+          'field' => array(
+            'field_name' => $module . '_refund_account',
+            'type' => 'text',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_refund_account',
+            'entity_type' => 'qb_report',
+            'bundle' => 'refund',
+            'label' => 'Refund from Account',
+            'cardinality' => 1,
+            'description' => $t('The account ID from which refunds will be drawn in order to credit a customer.'),
+            'widget' => array(
+              'type' => 'text_textfield',
+              'settings' => array('size' => 15),
+              'weight' => 0,
+            ),
+            'settings' => array(
+              'text_processing' => 0,
+              'max_length' => 15,
+            ),
+            'required' => 1,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Collect only the fields for this bundle
+  $fields = isset($bundle_fields[$bundle]) ? $bundle_fields[$bundle] : array();
+  $fields += ($bundle == "payment" ? array() : $bundle_fields['all']);
+
+  foreach ($fields as $field) {
+    // Set the bundle since the cached fields array can't set it for 'all' fields
+    $field['instance']['bundle'] = $bundle;
+
+    if (!field_info_field($field['field']['field_name'])) {
+      field_create_field($field['field']);
+    }
+
+    if (!field_info_instance($field['instance']['entity_type'], $field['instance']['field_name'], $field['instance']['bundle'])) {
+      field_create_instance($field['instance']);
+    }
+  }
+}
+
+/**
+ * Creates a transaction_date field
+ *
+ * @param $module
+ *   Convenience variable for creating the field name
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_add_transaction_date_field($module) {
+  $t = get_t();
+
+  return array(
+    'field' => array(
+      'field_name' => $module . '_txn_date',
+      'type' => 'datestamp',
+      'cardinality' => 1,
+    ),
+    'instance' => array(
+      'field_name' => $module . '_txn_date',
+      'entity_type' => 'qb_report',
+      'bundle' => '',
+      'label' => 'Transaction date',
+      'cardinality' => 1,
+      'description' => $t('Leave blank to automatically set to the date the transaction is generated.'),
+      'widget' => array(
+        'type' => 'date_popup',
+        'weight' => 0,
+      ),
+      'required' => 0,
+    ),
+  );
+}
+
+/**
+ * Creates an expiration_date field
+ *
+ * @param $module
+ *   Convenience variable for creating the field name
+ * @param string $label
+ *   Different bundles have difference names for transaction expiration
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_add_expiration_date_field($module, $label = "Expiration Date") {
+  $t = get_t();
+
+  return array(
+    'field' => array(
+      'field_name' => $module . '_expiration_date',
+      'type' => 'list_text',
+      'settings' => array(
+        'allowed_values' => _commerce_qbo_ui_expiry_dates(),
+      ),
+      'cardinality' => 1,
+    ),
+    'instance' => array(
+      'field_name' => $module . '_expiration_date',
+      'entity_type' => 'qb_report',
+      'bundle' => '',
+      'label' => $label,
+      'cardinality' => 1,
+      'description' => $t('Select when this transaction should expire after it gets created.'),
+      'widget' => array(
+        'type' => 'options_select',
+        'weight' => 1,
+      ),
+      'commerce_cart_settings' => array('attribute_field' => 0),
+      'required' => 1,
+    )
+  );
+}
+
+/**
+ * Creates a ship_via field
+ *
+ * @param $module
+ *   Convenience variable for creating the field name
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_add_ship_via_field($module) {
+  $t = get_t();
+
+  return array(
+    'field' => array(
+      'field_name' => $module . '_ship_via',
+      'type' => 'text',
+      'cardinality' => 1,
+    ),
+    'instance' => array(
+      'field_name' => $module . '_ship_via',
+      'entity_type' => 'qb_report',
+      'bundle' => 'payment',
+      'label' => 'Ship via',
+      'cardinality' => 1,
+      'description' => $t('Only fill in this field if your products ship from one location.'),
+      'widget' => array(
+        'type' => 'text_textfield',
+        'settings' => array('size' => 31),
+        'weight' => 0,
+      ),
+      'settings' => array(
+        'text_processing' => 0,
+        'max_length' => 31,
+      ),
+      'required' => 0,
+    ),
+  );
+}
+
+/**
+ * Creates a shipping_date field
+ *
+ * @param $module
+ *   Convenience variable for creating the field name
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_add_shipping_date_field($module) {
+  $t = get_t();
+
+  return array(
+    'field' => array(
+      'field_name' => $module . '_shipping_date',
+      'type' => 'list_text',
+      'settings' => array(
+        'allowed_values' => _commerce_qbo_ui_expiry_dates(),
+      ),
+      'cardinality' => 1,
+    ),
+    'instance' => array(
+      'field_name' => $module . '_shipping_date',
+      'entity_type' => 'qb_report',
+      'bundle' => '',
+      'label' => 'Order will be shipped in',
+      'cardinality' => 1,
+      'description' => $t('Leave blank if orders are typically shipped the same day.'),
+      'widget' => array(
+        'type' => 'options_select',
+        'weight' => 1,
+      ),
+      'commerce_cart_settings' => array('attribute_field' => 0),
+      'required' => 0,
+    )
+  );
+}
+
+/**
+ * Creates a deposit_account field
+ *
+ * @param $module
+ *   Convenience variable for creating the field name
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_add_deposit_account_field($module) {
+  $t = get_t();
+
+  return array(
+    // @TODO: This field should be a select list of deposit accounts pulled from QuickBooks
+    'field' => array(
+      'field_name' => $module . '_deposit_account',
+      'type' => 'text',
+      'cardinality' => 1,
+    ),
+    'instance' => array(
+      'field_name' => $module . '_deposit_account',
+      'entity_type' => 'qb_report',
+      'bundle' => 'payment',
+      'label' => 'Deposit Account',
+      'cardinality' => 1,
+      'description' => $t('The account ID that the funds will be deposited into.'),
+      'widget' => array(
+        'type' => 'text_textfield',
+        'settings' => array('size' => 31),
+        'weight' => 0,
+      ),
+      'settings' => array(
+        'text_processing' => 0,
+        'max_length' => 31,
+      ),
+      'required' => 1,
+    ),
+  );
 }
 
 /**
  * Implement hook_schema()
  */
 function commerce_qbo_ui_schema() {
-  $schema['commerce_qbo_ui_report_types'] = array(
+  $schema['commerce_qbo_ui_report'] = array(
     'description' => 'Table that stores user created report types.',
     'fields' => array(
       'rtid' => array(
@@ -32,18 +703,30 @@ function commerce_qbo_ui_schema() {
         'length' => 63,
         'not null' => TRUE,
       ),
-      'active' => array(
-        'description' => 'A flag indicating if this report type should be usable.',
+      'report_type' => array(
+        'description' => 'The bundle the report belongs to',
+        'type' => 'varchar',
+        'length' => 15,
+        'not null' => TRUE,
+      ),
+      'status' => array(
+        'description' => 'Boolean indicating whether or not this report can be used to create a transaction.',
         'type' => 'int',
         'size' => 'tiny',
+        'not null' => TRUE,
         'default' => 1,
       ),
-      'data' => array(
-        'description' => 'A serialized array containing the report information to send to QuickBooks.',
-        'type' => 'blob',
-        'size' => 'big',
+      'created' => array(
+        'description' => 'The Unix timestamp when the product was created.',
+        'type' => 'int',
         'not null' => TRUE,
-        'serialize' => TRUE,
+        'default' => 0,
+      ),
+      'changed' => array(
+        'description' => 'The Unix timestamp when the product was most recently saved.',
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
       ),
     ),
     'primary key' => array('rtid'),
@@ -51,7 +734,38 @@ function commerce_qbo_ui_schema() {
       'name' => array('name'),
     ),
   );
-
+  $schema['commerce_qbo_ui_report_type'] = array(
+    'description' => 'Stores information about {commerce_qbo_ui_report} types.',
+    'fields' => array(
+      'type' => array(
+        'description' => 'The machine-readable name of this type.',
+        'type' => 'varchar',
+        'length' => 32,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'name' => array(
+        'description' => 'The human-readable name of this type.',
+        'type' => 'varchar',
+        'length' => 15,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+      'description' => array(
+        'description' => 'A brief description of this type.',
+        'type' => 'text',
+        'not null' => TRUE,
+        'size' => 'medium',
+      ),
+      'help' => array(
+        'description' => 'Help information shown to the user when creating a {commerce_qbo_ui_report} of this type.',
+        'type' => 'text',
+        'not null' => FALSE,
+        'size' => 'medium',
+      ),
+    ),
+    'primary key' => array('type'),
+  );
   $schema['commerce_qbo_ui_staged_report'] = array(
     'description' => 'Table that stores pending reports triggered by Rules.',
     'fields' => array(
@@ -135,4 +849,129 @@ function commerce_qbo_ui_uninstall() {
   foreach($vars as $var) {
     variable_del($var);
   }
+
+  // Delete fields defined by this module
+  $bundles = _commerce_qbo_ui_bundles();
+  $fields = _commerce_qbo_ui_fields();
+
+  // We delete field collections separately due to their more unique nature
+  foreach($fields['collection_field'] as $field) {
+    $name = 'c_qbo_ui' . $field;
+    $bundle = 'c_qbo_ui_line_item_collection';
+
+    $instance = field_info_instance('field_collection_item', $name, $bundle);
+    if($instance) {
+      field_delete_instance($instance);
+    }
+
+    field_delete_field($name);
+  }
+
+  // Delete regular fields belonging to qb_report bundles
+  foreach($fields['field'] as $field) {
+    $name = "commerce_qbo_ui" . $field;
+
+    // Clear all instances belonging to the bundles
+    foreach($bundles as $bundle) {
+      $instance = field_info_instance('qb_report', $name, $bundle);
+      if($instance) {
+        field_delete_instance($instance);
+      }
+    }
+
+    field_delete_field($name);
+  }
+
+  // Delete the collection entities themselves
+  foreach($fields['collection'] as $collection) {
+    $name = 'c_qbo_ui' . $collection;
+    $type = 'qb_report';
+
+    // Clear all instances belonging to the bundles
+    foreach($bundles as $bundle) {
+      $instance = field_info_instance($type, $name, $bundle);
+      if($instance) {
+        field_delete_instance($instance);
+      }
+    }
+
+    field_delete_field($name);
+  }
+
+  field_purge_batch(1000);
+}
+
+/**
+ * Returns an array of times keyed by their equivalence in seconds
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_expiry_dates() {
+  return array(
+    86400 => '1 day',
+    172800 => '2 days',
+    259200 => '3 days',
+    345600 => '4 days',
+    432000 => '5 days',
+    518400 => '6 days',
+    604800 => '1 week',
+    1209600 => '2 weeks',
+    1814400 => '3 weeks',
+    2592000 => '1 month',
+    5184000 => '2 months',
+    7776000 => '3 months',
+  );
+}
+
+/**
+ * Returns a list of bundle types for qb_report entities
+ *
+ * Used by hook_uninstall() only and should not be called elsewhere in the code
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_bundles() {
+  return array(
+    'invoice',
+    'payment',
+    'estimate',
+    'credit_memo',
+    'sales_receipt',
+    'refund',
+  );
+}
+
+/**
+ * Returns a list of fields that module uses to simplify uninstalling
+ *
+ * @return array
+ */
+function _commerce_qbo_ui_fields() {
+  $fields = array(
+    'collection_field' => array(
+      '_line_description',
+      '_line_item_type',
+      '_line_quantity',
+      '_line_rate',
+      '_product_service',
+    ),
+    'field' => array(
+      '_deposit_account',
+      '_expiration_date',
+      '_memo',
+      '_message',
+      '_refund_account',
+      '_sales_rep',
+      '_ship_via',
+      '_shipping_date',
+      '_tax_type',
+      '_txn_date',
+      '_po_number',
+    ),
+    'collection' => array(
+      '_line_item_collection',
+    ),
+  );
+
+  return $fields;
 }
