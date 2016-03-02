@@ -371,7 +371,7 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
       if($qb_collection->c_qbo_ui_line_item_type->value() == $line_item_type) {
         // Replace tokens in product/service and description fields
         $data = array('commerce-order' => $order, 'commerce-line-item' => $line_item);
-        _commerce_qbo_ui_replace_tokens($qb_collection, $data);
+        $parsed_text = _commerce_qbo_ui_replace_tokens($qb_collection, $data);
 
         // Build the line
         $row = new IPPLine();
@@ -379,7 +379,7 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
         $row->SalesItemLineDetail = new IPPSalesItemLineDetail();
 
         // Item Ref
-        $item_ref = _commerce_qbo_ui_get_item_ref($qb_collection->c_qbo_ui_product_service->value(), $line_item_wrapper, $qb_collection);
+        $item_ref = _commerce_qbo_ui_get_item_ref($parsed_text['item_name'], $parsed_text['description'], $line_item_wrapper, $qb_collection);
         if($item_ref === FALSE) {
           // Item ref is a required field, we can't continue without it
           return FALSE;
@@ -409,14 +409,14 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
         }
 
         // Amount
-        $row->Amount = Math.max($row->SalesItemLineDetail->UnitPrice * $row->SalesItemLineDetail->Qty, $line_item_wrapper->commerce_total->amount_decimal->value());
+        $row->Amount = $row->SalesItemLineDetail->UnitPrice * $row->SalesItemLineDetail->Qty;
 
         // Tax Code Ref
         // @TODO: Distinguish between Global and US account
 
         // Description
         if(!empty($qb_collection->c_qbo_ui_line_description->value())) {
-          $row->Description = $qb_collection->c_qbo_ui_line_description->value();
+          $row->Description = $parsed_text['description'];
         }
 
         $txn->Line[] = $row;
@@ -464,13 +464,20 @@ function _commerce_qbo_ui_get_payment_method($order) {
  *   qb_report entity wrapper
  * @param array $data
  *   The objects to reference token values from
+ *
+ * @return array
+ *   The field values with possible token replacements
  */
-function  _commerce_qbo_ui_replace_tokens(&$qb_collection, $data = array()) {
+function  _commerce_qbo_ui_replace_tokens($qb_collection, $data = array()) {
+  $return = array();
+
   $text = $qb_collection->c_qbo_ui_product_service->value();
-  $qb_collection->c_qbo_ui_product_service = token_replace($text, $data);
+  $return['item_name'] = token_replace($text, $data);
 
   $text = $qb_collection->c_qbo_ui_line_description->value();
-  $qb_collection->c_qbo_ui_line_description = token_replace($text, $data);
+  $return['description'] = token_replace($text, $data);
+
+  return $return;
 }
 
 /**
@@ -478,6 +485,8 @@ function  _commerce_qbo_ui_replace_tokens(&$qb_collection, $data = array()) {
  *
  * @param $item_name
  *   The name of the Item to reference in the Line
+ * @param $description
+ *   The description of the Item
  * @param $line_item
  *   Passed through in case a new Item needs to be created
  * @param $qb_collection
@@ -486,7 +495,7 @@ function  _commerce_qbo_ui_replace_tokens(&$qb_collection, $data = array()) {
  * @return bool|\com\intuit\schema\finance\v3\IPPid
  *   FALSE if no item existed and we couldn't create one, an ID otherwise
  */
-function _commerce_qbo_ui_get_item_ref($item_name, $line_item, $qb_collection) {
+function _commerce_qbo_ui_get_item_ref($item_name, $description, $line_item, $qb_collection) {
   $item_name = check_plain($item_name);
   $query = "SELECT Id FROM Item WHERE Name = '$item_name'";
   $items = qbo_api_query($query, TRUE);
@@ -500,7 +509,7 @@ function _commerce_qbo_ui_get_item_ref($item_name, $line_item, $qb_collection) {
   }
   else {
     // No item exists by the given name, try to create one and pass it back
-    $item = _commerce_qbo_ui_create_item($item_name, $line_item, $qb_collection);
+    $item = _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_collection);
 
     return $item ? $item->Id : FALSE;
   }
@@ -513,6 +522,8 @@ function _commerce_qbo_ui_get_item_ref($item_name, $line_item, $qb_collection) {
  *
  * @param $item_name
  *   The name of the Item to reference in the Line
+ * @param $description
+ *   The description of the Item
  * @param $line_item
  *   Passed through in case a new Item needs to be created
  * @param $qb_collection
@@ -521,13 +532,13 @@ function _commerce_qbo_ui_get_item_ref($item_name, $line_item, $qb_collection) {
  * @return bool|IPPIntuitEntity
  *   A new Item or FALSE if we failed to create one
  */
-function _commerce_qbo_ui_create_item($item_name, $line_item, $qb_collection) {
+function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_collection) {
   $client = qbo_api_client();
 
   $new_item = new IPPItem();
   $new_item->Name = check_plain($item_name);
   $new_item->Type = "Service";
-  $new_item->Description = $qb_collection->c_qbo_ui_line_description->value();
+  $new_item->Description = $description;
 
   // Calculate Unit price for this item
   if(!empty($qb_collection->c_qbo_ui_line_rate->value())) {
