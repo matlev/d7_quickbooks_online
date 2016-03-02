@@ -31,11 +31,39 @@ function commerce_qbo_ui_active_rules() {
 /**
  * The form for the Settings tab
  *
+ * @TODO: Allow users to decide whether or not this module can create QuickBooks
+ *   entities (customers, items).  Users may be more inclined to create these
+ *   properties themselves in case of a transaction failure so that have total
+ *   control over the set up.
+ *
  * @param $form
  * @param $form_state
  */
 function commerce_qbo_ui_config($form, &$form_state) {
   commerce_qbo_ui_ready_check();
+
+  // Allow the user to populate certain field data with select lists pull from
+  // their quickbooks account.  This is irreversible.
+  if(variable_get('commerce_qbo_ui_run', 0)) {
+    $form['field_actions'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Request QuickBooks data for form fields'),
+      '#description' => t('Populates fields in the qb_reports forms with data pulled ' .
+        'from QuickBooks, allowing admins to select from a list of acceptable values ' .
+        'instead of manually inputting IDs.<br/>' .
+        'Affected fields: <i>Deposit Account, Refund Account, Tax Rate</i><br/>' .
+        '<b>WARNING: This process is irreversible.  You will be unable to go back ' .
+        'to direct ID input, but you can update the lists by pressing this button ' .
+        'again.</b>'),
+    );
+    $form['field_actions']['commerce_qbo_ui_populate_field_data'] = array(
+      '#type' => 'submit',
+      '#title' => t('Pull data from QuickBooks'),
+      '#value' => 'Populate',
+      '#limit_validation_errors' => array(),
+      '#submit' => array('commerce_qbo_ui_populate_field_data'),
+    );
+  }
 
   // For capturing fail/success messages from QuickBooks Online
   $form['commerce_qbo_ui_logging'] = array(
@@ -82,6 +110,43 @@ function commerce_qbo_ui_config($form, &$form_state) {
 }
 
 /**
+ * Submit handler for commerce_qbo_ui_populate_field_data button
+ *
+ * Creates or updates the
+ *
+ * @param $form
+ * @param $form_state
+ */
+function commerce_qbo_ui_populate_field_data($form, &$form_state) {
+  // We should only be able to access this function if the api is fully
+  // configured, but double check anyways
+  if(qbo_api_client()) {
+    // Grab QuickBooks values
+    $accounts = qbo_api_query_as_options('SELECT Id, Name FROM Account', '', TRUE);
+    $tax_codes = qbo_api_query_as_options('SELECT Id, Name FROM TaxCode', '', TRUE);
+
+    // Edit field values
+    $pre = "commerce_qbo_ui";
+    $field = array();
+
+    $field['field_name'] = $pre . "_deposit_acc_s";
+    $field['settings']['allowed_values'] = $accounts;
+    field_update_field($field);
+
+    $field['field_name'] = $pre . "_refund_acc_s";
+    field_update_field($field);
+
+    $field['field_name'] = $pre . "_tax_type_s";
+    $field['settings']['allowed_values'] = $tax_codes;
+    field_update_field($field);
+
+    drupal_set_message("Fields populated successfully.");
+  } else {
+    drupal_set_message("Failed to populate lists.");
+  }
+}
+
+/**
  * Displays a list of reports waiting to be manually submitted to QuickBooks
  *
  * A table with the following features is printed out:
@@ -119,10 +184,13 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
         ->execute()
         ->fetchAssoc();
 
-      $order_id = $result['rid'];
+      $order_id = $result['order_id'];
       $report_type = $form_state['values']['commerce_qbo_ui_report_type'];
 
-      commerce_qbo_ui_send_report($order_id, $report_type);
+      if(commerce_qbo_ui_send_report($order_id, $report_type)) {
+        // We can remove the report from pending if the transaction is successful
+        _commerce_qbo_ui_clear_sr_by_id($srid);
+      }
     }
   }
 

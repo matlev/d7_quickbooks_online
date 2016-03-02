@@ -141,7 +141,8 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
           'entity_type' => 'qb_report',
           'bundle' => '',
           'label' => $t('QuickBooks Online Line Item'),
-          'description' => '',
+          'description' => $t('Produces a Line on a sales transaction.  Description ' .
+            'and Product/Service support token values.'),
           'widget' => array(
             'type' => 'field_collection_embed',
             'weight' => 10,
@@ -184,7 +185,9 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
           'bundle' => $module . '_line_item_collection',
           'label' => $t('Product/Service'),
           'cardinality' => 1,
-          'description' => $t('A label for the line item'),
+          'description' => $t('This should match up to an existing item name in ' .
+            'your QuickBooks account.<br/>' .
+            'Some example tokens: [commerce-line-item:commerce-product:sku], [commerce-line-item:commerce-product:title]'),
           'widget' => array(
             'type' => 'text_textfield',
             'settings' => array('size' => 63)
@@ -208,7 +211,7 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
           'bundle' => $module . '_line_item_collection',
           'label' => 'Description',
           'cardinality' => 1,
-          'description' => 'Product and line item fields can be substituted by enclosing the field name in square brackets and prefixing with a colon (ex [:field_sku]).',
+          'description' => 'Leave blank to use the Item description defined in your QuickBooks account.',
           'widget' => array(
             'type' => 'text_textarea',
             'rows' => 10,
@@ -299,6 +302,8 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
   $module = "commerce_qbo_ui";
 
   if(!isset($bundle_fields)) {
+    $deposit_field = _commerce_qbo_ui_add_deposit_account_field($module);
+
     // We need to set up the bundle fields for the first time
     $bundle_fields = array(
       'all' => array(
@@ -425,6 +430,31 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'required' => 0,
           ),
         ),
+        array(
+          'field' => array(
+            'field_name' => $module . '_tax_type_s',
+            'type' => 'list_text',
+            'settings' => array(
+              'allowed_values' => array(),
+            ),
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_tax_type_s',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => 'Tax Code',
+            'cardinality' => 1,
+            'description' => $t('Select a tax rate to apply to this transaction, ' .
+              'or leave unselected to automatically detect if tax applies to the order.'),
+            'widget' => array(
+              'type' => 'options_select',
+              'weight' => 0,
+            ),
+            'commerce_cart_settings' => array('attribute_field' => 0),
+            'required' => 1,
+          ),
+        ),
       ),
       'estimate' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
@@ -440,13 +470,15 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
       ),
       'payment' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
-        _commerce_qbo_ui_add_deposit_account_field($module),
+        $deposit_field[0],
+        $deposit_field[1],
       ),
       'sales_receipt' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
         _commerce_qbo_ui_add_ship_via_field($module),
         _commerce_qbo_ui_add_shipping_date_field($module),
-        _commerce_qbo_ui_add_deposit_account_field($module),
+        $deposit_field[0],
+        $deposit_field[1],
       ),
       'credit_memo' => array(), // No unique fields as of 02/22/16
       'refund' => array(
@@ -473,6 +505,30 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
               'text_processing' => 0,
               'max_length' => 15,
             ),
+            'required' => 1,
+          ),
+        ),
+        array(
+          'field' => array(
+            'field_name' => $module . '_refund_acc_s',
+            'type' => 'list_text',
+            'settings' => array(
+              'allowed_values' => array(),
+            ),
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_refund_acc_s',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => 'Refund from Account',
+            'cardinality' => 1,
+            'description' => $t('The account ID from which refunds will be drawn in order to credit a customer.'),
+            'widget' => array(
+              'type' => 'options_select',
+              'weight' => 0,
+            ),
+            'commerce_cart_settings' => array('attribute_field' => 0),
             'required' => 1,
           ),
         ),
@@ -590,7 +646,7 @@ function _commerce_qbo_ui_add_ship_via_field($module) {
     'instance' => array(
       'field_name' => $module . '_ship_via',
       'entity_type' => 'qb_report',
-      'bundle' => 'payment',
+      'bundle' => '',
       'label' => 'Ship via',
       'cardinality' => 1,
       'description' => $t('Only fill in this field if your products ship from one location.'),
@@ -656,32 +712,60 @@ function _commerce_qbo_ui_add_shipping_date_field($module) {
 function _commerce_qbo_ui_add_deposit_account_field($module) {
   $t = get_t();
 
-  return array(
-    // @TODO: This field should be a select list of deposit accounts pulled from QuickBooks
-    'field' => array(
-      'field_name' => $module . '_deposit_account',
-      'type' => 'text',
-      'cardinality' => 1,
+  $return = array(
+    array(
+      // @TODO: This field should be a select list of deposit accounts pulled from QuickBooks
+      'field' => array(
+        'field_name' => $module . '_deposit_account',
+        'type' => 'text',
+        'cardinality' => 1,
+      ),
+      'instance' => array(
+        'field_name' => $module . '_deposit_account',
+        'entity_type' => 'qb_report',
+        'bundle' => '',
+        'label' => 'Deposit Account',
+        'cardinality' => 1,
+        'description' => $t('The account ID that the funds will be deposited into.'),
+        'widget' => array(
+          'type' => 'text_textfield',
+          'settings' => array('size' => 31),
+          'weight' => 0,
+        ),
+        'settings' => array(
+          'text_processing' => 0,
+          'max_length' => 31,
+        ),
+        'required' => 1,
+      ),
     ),
-    'instance' => array(
-      'field_name' => $module . '_deposit_account',
-      'entity_type' => 'qb_report',
-      'bundle' => 'payment',
-      'label' => 'Deposit Account',
-      'cardinality' => 1,
-      'description' => $t('The account ID that the funds will be deposited into.'),
-      'widget' => array(
-        'type' => 'text_textfield',
-        'settings' => array('size' => 31),
-        'weight' => 0,
+    array(
+      'field' => array(
+        'field_name' => $module . '_deposit_acc_s',
+        'type' => 'list_text',
+        'settings' => array(
+          'allowed_values' => array(),
+        ),
+        'cardinality' => 1,
       ),
-      'settings' => array(
-        'text_processing' => 0,
-        'max_length' => 31,
+      'instance' => array(
+        'field_name' => $module . '_deposit_acc_s',
+        'entity_type' => 'qb_report',
+        'bundle' => '',
+        'label' => 'Deposit Account',
+        'cardinality' => 1,
+        'description' => $t('The account ID that the funds will be deposited into.'),
+        'widget' => array(
+          'type' => 'options_select',
+          'weight' => 0,
+        ),
+        'commerce_cart_settings' => array('attribute_field' => 0),
+        'required' => 1,
       ),
-      'required' => 1,
     ),
   );
+
+  return $return;
 }
 
 /**
@@ -957,14 +1041,17 @@ function _commerce_qbo_ui_fields() {
     ),
     'field' => array(
       '_deposit_account',
+      '_deposit_acc_s',
       '_expiration_date',
       '_memo',
       '_message',
       '_refund_account',
+      '_refund_acc_s',
       '_sales_rep',
       '_ship_via',
       '_shipping_date',
       '_tax_type',
+      '_tax_type_s',
       '_txn_date',
       '_po_number',
     ),

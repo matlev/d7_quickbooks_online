@@ -50,7 +50,7 @@ function commerce_qbo_ui_rules_action_info() {
           'options list' => 'commerce_qbo_ui_rule_action_report_options',
           'default value' => '',
           'description' => t('This list is populated by Report Types. !link',
-            array('!link' => l(t('Create a Report Type.'), "admin/commerce/commerce_qbo_ui/report_types"))
+            array('!link' => l(t('Create a Report Type.'), "admin/commerce/commerce_qbo_ui/qb_reports/add"))
           ),
         ),
       ),
@@ -91,7 +91,7 @@ function commerce_qbo_ui_rule_action_report_options() {
 
   $report_types = db_select('commerce_qbo_ui_report', 'rt')
     ->fields('rt', array('rtid', 'name'))
-    ->condition('active', 1, '=')
+    ->condition('status', 1, '=')
     ->execute();
 
   if($report_types->rowCount()) {

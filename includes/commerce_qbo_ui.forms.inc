@@ -35,6 +35,33 @@ function commerce_qbo_ui_qb_report_form($form, &$form_state, $report) {
 
   field_attach_form('qb_report', $report, $form, $form_state, LANGUAGE_NONE);
 
+  // Check to see if this form has an interchangeable field(s)
+  $pre = "commerce_qbo_ui";
+  if(isset($form[$pre . '_deposit_acc_s'])) {
+    if(count($form[$pre . '_deposit_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
+      unset($form[$pre . '_deposit_account']);
+    }
+    else {
+      unset($form[$pre . '_deposit_acc_s']);
+    }
+  }
+  if(isset($form[$pre . '_refund_acc_s'])) {
+    if(count($form[$pre . '_refund_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
+      unset($form[$pre . '_refund_account']);
+    }
+    else {
+      unset($form[$pre . '_refund_acc_s']);
+    }
+  }
+  if(isset($form[$pre . '_tax_type_s'])) {
+    if(count($form[$pre . '_tax_type_s'][LANGUAGE_NONE]['#options']) > 1) {
+      unset($form[$pre . '_tax_type']);
+    }
+    else {
+      unset($form[$pre . '_tax_type_s']);
+    }
+  }
+
   $form['status'] = array(
     '#type' => 'radios',
     '#title' => t('Status'),
@@ -65,6 +92,14 @@ function commerce_qbo_ui_qb_report_form($form, &$form_state, $report) {
     '#type' => 'submit',
     '#value' => t('Save report'),
     '#submit' => array_merge($submit, array('commerce_qbo_ui_qb_report_form_submit')),
+  );
+  $form['actions']['cancel'] = array(
+    '#type' => 'link',
+    '#title' => t('Cancel'),
+    '#href' => 'admin/commerce/commerce_qbo_ui/qb_reports',
+    '#options' => array(
+      'path' => 'admin/commerce/commerce_qbo_ui/qb_reports',
+    )
   );
 
   // We append the validate handler to #validate in case a form callback_wrapper
