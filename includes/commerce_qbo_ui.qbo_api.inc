@@ -130,7 +130,10 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
   }
 
   // Pass in the non-mandatory values now
-  // @TODO: Fill out this section
+  $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {

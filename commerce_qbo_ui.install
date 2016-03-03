@@ -309,30 +309,6 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
       'all' => array(
         array(
           'field' => array(
-            'field_name' => $module . '_sales_rep',
-            'type' => 'text',
-            'cardinality' => 1,
-          ),
-          'instance' => array(
-            'field_name' => $module . '_sales_rep',
-            'entity_type' => 'qb_report',
-            'bundle' => '',
-            'label' => $t('Sales Rep'),
-            'cardinality' => 1,
-            'description' => $t('Name of sales rep for this order'),
-            'widget' => array(
-              'type' => 'text_textfield',
-              'settings' => array('size' => 63)
-            ),
-            'settings' => array(
-              'text_processing' => 0,
-              'max_length' => 63,
-            ),
-            'required' => 0,
-          ),
-        ),
-        array(
-          'field' => array(
             'field_name' => $module . '_po_number',
             'type' => 'text',
             'cardinality' => 1,
@@ -365,9 +341,9 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'field_name' => $module . '_message',
             'entity_type' => 'qb_report',
             'bundle' => '',
-            'label' => $t('Sales Rep'),
+            'label' => $t('Customer Message'),
             'cardinality' => 1,
-            'description' => $t('A message the customer sees when viewing this report. Accepts field tokens (ex. [:field_name])'),
+            'description' => $t('A message the customer sees when viewing this report.'),
             'widget' => array(
               'type' => 'text_textarea',
               'rows' => 10,
@@ -389,7 +365,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'bundle' => '',
             'label' => $t('Memo'),
             'cardinality' => 1,
-            'description' => $t('A private memo for accountants. Accepts field tokens (ex. [:field_name])'),
+            'description' => $t('A private memo for accountants.'),
             'widget' => array(
               'type' => 'text_textarea',
               'rows' => 10,
@@ -400,9 +376,6 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
           ),
         ),
         array(
-          // @TODO: This field should be a select list of tax rates pulled from
-          //   QuickBooks, with the description changed to "select auto for"
-          //   letting the system apply tax based on checkout rules.
           'field' => array(
             'field_name' => $module . '_tax_type',
             'type' => 'text',
@@ -538,7 +511,6 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
 
   // Collect only the fields for this bundle
   $fields = isset($bundle_fields[$bundle]) ? $bundle_fields[$bundle] : array();
-  $fields += ($bundle == "payment" ? array() : $bundle_fields['all']);
 
   foreach ($fields as $field) {
     // Set the bundle since the cached fields array can't set it for 'all' fields
@@ -550,6 +522,21 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
 
     if (!field_info_instance($field['instance']['entity_type'], $field['instance']['field_name'], $field['instance']['bundle'])) {
       field_create_instance($field['instance']);
+    }
+  }
+
+  if($bundle != "payment") {
+    foreach ($bundle_fields['all'] as $field) {
+      // Set the bundle since the cached fields array can't set it for 'all' fields
+      $field['instance']['bundle'] = $bundle;
+
+      if (!field_info_field($field['field']['field_name'])) {
+        field_create_field($field['field']);
+      }
+
+      if (!field_info_instance($field['instance']['entity_type'], $field['instance']['field_name'], $field['instance']['bundle'])) {
+        field_create_instance($field['instance']);
+      }
     }
   }
 }
@@ -714,7 +701,6 @@ function _commerce_qbo_ui_add_deposit_account_field($module) {
 
   $return = array(
     array(
-      // @TODO: This field should be a select list of deposit accounts pulled from QuickBooks
       'field' => array(
         'field_name' => $module . '_deposit_account',
         'type' => 'text',
@@ -1047,7 +1033,6 @@ function _commerce_qbo_ui_fields() {
       '_message',
       '_refund_account',
       '_refund_acc_s',
-      '_sales_rep',
       '_ship_via',
       '_shipping_date',
       '_tax_type',
