@@ -432,13 +432,11 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
       'estimate' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
         _commerce_qbo_ui_add_expiration_date_field($module),
-        _commerce_qbo_ui_add_ship_via_field($module),
         _commerce_qbo_ui_add_shipping_date_field($module),
       ),
       'invoice' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
         _commerce_qbo_ui_add_expiration_date_field($module, "Due Date"),
-        _commerce_qbo_ui_add_ship_via_field($module),
         _commerce_qbo_ui_add_shipping_date_field($module),
       ),
       'payment' => array(
@@ -448,7 +446,6 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
       ),
       'sales_receipt' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
-        _commerce_qbo_ui_add_ship_via_field($module),
         _commerce_qbo_ui_add_shipping_date_field($module),
         $deposit_field[0],
         $deposit_field[1],
@@ -602,7 +599,7 @@ function _commerce_qbo_ui_add_expiration_date_field($module, $label = "Expiratio
       'bundle' => '',
       'label' => $label,
       'cardinality' => 1,
-      'description' => $t('Select when this transaction should expire after it gets created.'),
+      'description' => $t('If blank, QuickBooks will automatically set an expiration date.'),
       'widget' => array(
         'type' => 'options_select',
         'weight' => 1,
@@ -610,44 +607,6 @@ function _commerce_qbo_ui_add_expiration_date_field($module, $label = "Expiratio
       'commerce_cart_settings' => array('attribute_field' => 0),
       'required' => 1,
     )
-  );
-}
-
-/**
- * Creates a ship_via field
- *
- * @param $module
- *   Convenience variable for creating the field name
- *
- * @return array
- */
-function _commerce_qbo_ui_add_ship_via_field($module) {
-  $t = get_t();
-
-  return array(
-    'field' => array(
-      'field_name' => $module . '_ship_via',
-      'type' => 'text',
-      'cardinality' => 1,
-    ),
-    'instance' => array(
-      'field_name' => $module . '_ship_via',
-      'entity_type' => 'qb_report',
-      'bundle' => '',
-      'label' => 'Ship via',
-      'cardinality' => 1,
-      'description' => $t('Only fill in this field if your products ship from one location.'),
-      'widget' => array(
-        'type' => 'text_textfield',
-        'settings' => array('size' => 31),
-        'weight' => 0,
-      ),
-      'settings' => array(
-        'text_processing' => 0,
-        'max_length' => 31,
-      ),
-      'required' => 0,
-    ),
   );
 }
 

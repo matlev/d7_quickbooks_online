@@ -99,6 +99,9 @@ function commerce_qbo_ui_route_txn($qb_report) {
 /* ------------------------------------------- +
  | Transaction Functions                       |
  + ------------------------------------------- */
+/**
+ * @TODO: Refactor this section to remove duplicate code.
+ */
 
 /**
  * Builds and submits a Credit Memo transaction
@@ -177,8 +180,22 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in the non-mandatory values now
-  // @TODO: Fill out this section
+  // Pass in non-mandatory values (generic)
+  $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+
+  // Pass in non-mandatory value (specific)
+  if(!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
+    $ship_in = $ewr->commerce_qbo_ui_shipping_date->value();
+    $txn->ShipDate = format_date(REQUEST_TIME + $ship_in, 'custom', 'Y-m-d');
+  }
+  if(!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
+    $expires_in = $ewr->commerce_qbo_ui_expiration_date->value();
+    $txn->ExpirationDate = format_date(REQUEST_TIME + $expires_in, 'custom', 'Y-m-d');
+  }
+
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -222,8 +239,21 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in the non-mandatory values now
-  // @TODO: Fill out this section
+  // Pass in non-mandatory values (generic)
+  $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+
+  // Pass in non-mandatory value (specific)
+  if(!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
+    $ship_in = $ewr->commerce_qbo_ui_shipping_date->value();
+    $txn->ShipDate = format_date(REQUEST_TIME + $ship_in, 'custom', 'Y-m-d');
+  }
+  if(!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
+    $expires_in = $ewr->commerce_qbo_ui_expiration_date->value();
+    $txn->ExpirationDate = format_date(REQUEST_TIME + $expires_in, 'custom', 'Y-m-d');
+  }
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -280,7 +310,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   $txn->DepositToAccountRef = $deposit_account_ref;
 
   // Memo
-  //$txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -324,8 +354,20 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in the non-mandatory values now
-  // @TODO: Fill out this section
+  // Set Refund Account
+  $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+  if($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
+  }
+  else {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value();
+  }
+  $txn->DepositToAccountRef = $deposit_account_ref;
+
+  // Pass in non-mandatory values (generic)
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -359,7 +401,8 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if($txn->CustomerRef == FALSE) {
-    return TRANSACTION_FAILURE;
+    // Customer Ref isn't required for a Sales Receipt
+    $txn->CustomerRef = '';
   }
 
   // Initialize Line array
@@ -369,8 +412,24 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in the non-mandatory values now
-  // @TODO: Fill out this section
+  // Pass in non-mandatory values (generic)
+  $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+
+  // Pass in non-mandatory value (specific)
+  $ewo = entity_metadata_wrapper('commerce_order', $order);
+  $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
+  $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
+  if($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
+  }
+  else {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value();
+  }
+  $txn->DepositToAccountRef = $deposit_account_ref;
+
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
