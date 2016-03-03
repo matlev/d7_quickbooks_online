@@ -260,7 +260,10 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
     return TRANSACTION_FAILURE;
   }
 
-  // Payment amount
+  // Amount
+  $txn->TotalAmt = $ewo->commerce_order_total->amount_decimal->value();
+
+  // Payment method
   $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
   $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
 
