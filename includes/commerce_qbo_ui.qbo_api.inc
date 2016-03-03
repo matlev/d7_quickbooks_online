@@ -248,7 +248,45 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
-  $payment_method = _commerce_qbo_ui_get_payment_method($order);
+  $ewo = entity_metadata_wrapper('comerce_order', $order);
+  $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+
+  // Initialize the transaction object
+  $txn = new IPPPayment();
+
+  // Attach the customer to the transaction
+  $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
+  if($txn->CustomerRef == FALSE) {
+    return TRANSACTION_FAILURE;
+  }
+
+  // Payment amount
+  $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
+  $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
+
+  // Deposit account
+  if($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
+  }
+  else {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value();
+  }
+  $txn->DepositToAccountRef = $deposit_account_ref;
+
+  // Memo
+  //$txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+
+  // Finally, attempt to pass the transaction to QuickBooks
+  try {
+    $txn = $client->Add($txn);
+
+    return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
+  }
+  catch (Exception $e) {
+    // The operation failed..
+    commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
+    return TRANSACTION_FAILURE;
+  }
 }
 
 /**
@@ -264,7 +302,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
-// Initialize the transaction object
+  // Initialize the transaction object
   $txn = new IPPRefundReceipt();
 
   // Attach the customer to the transaction
@@ -617,8 +655,6 @@ function commerce_qbo_ui_get_customer_id($order) {
 /**
  * Creates a Customer in QuickBooks
  *
- * @TODO: Add all address fields to the billing address and create shipping
- *   address values.
  * @TODO: Add check for user-given permission to create an entity
  *
  * @param $customer_name
@@ -640,16 +676,83 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
 
   // Address (Minimal, Country, State/Province and Postal Code)
   $new_customer->BillAddr = new IPPPhysicalAddress();
+  $new_customer->BillAddr->Line1 = $ewo->commerce_customer_billing->commerce_customer_address->thoroughfare->value();
+  $new_customer->BillAddr->Line2 = $ewo->commerce_customer_billing->commerce_customer_address->premise->value();
   $new_customer->BillAddr->Country = $ewo->commerce_customer_billing->commerce_customer_address->country->value();
   $new_customer->BillAddr->CountrySubDivisionCode = $ewo->commerce_customer_billing->commerce_customer_address->administrative_area->value();
+  $new_customer->BillAddr->City = $ewo->commerce_customer_billing->commerce_customer_address->locality->value();
   $new_customer->BillAddr->PostalCode = $ewo->commerce_customer_billing->commerce_customer_address->postal_code->value();
+
+  // Shipping Address
+  $new_customer->ShipAddr = new IPPPhysicalAddress();
+  $new_customer->ShipAddr->Line1 = $ewo->commerce_customer_shipping->commerce_customer_address->thoroughfare->value();
+  $new_customer->ShipAddr->Line2 = $ewo->commerce_customer_shipping->commerce_customer_address->premise->value();
+  $new_customer->ShipAddr->Country = $ewo->commerce_customer_shipping->commerce_customer_address->country->value();
+  $new_customer->ShipAddr->CountrySubDivisionCode = $ewo->commerce_customer_shipping->commerce_customer_address->administrative_area->value();
+  $new_customer->ShipAddr->City = $ewo->commerce_customer_shipping->commerce_customer_address->locality->value();
+  $new_customer->ShipAddr->PostalCode = $ewo->commerce_customer_shipping->commerce_customer_address->postal_code->value();
 
   try {
     $customer = $client->Add($new_customer);
     return $customer;
   }
   catch (Exception $e) {
-    commerce_qbo_ui_log_message("Unable to create new item [" . $customer_name . "]. ", $e);
+    commerce_qbo_ui_log_message("Unable to create new customer [" . $customer_name . "]. ", $e);
+    return FALSE;
+  }
+}
+
+/**
+ * Returns the ref ID of a payment method if it exists
+ *
+ * @param $payment_method
+ *   Name of the Payment Method
+ *
+ * @return \com\intuit\schema\finance\v3\IPPid|string
+ *   Blank if no method exists and we couldn't create one, the ref ID otherwise
+ */
+function commerce_qbo_ui_get_payment_method_ref($payment_method) {
+  $query = "SELECT Id FROM PaymentMethod WHERE Name = '" . check_plain($payment_method) . "'";
+
+  $payment_methods = qbo_api_query($query, TRUE);
+
+  if(count($payment_methods)) {
+    foreach($payment_methods as $method) {
+      $id = $method->Id;
+    }
+
+    return $id;
+  }
+  else {
+    // No method exists by the given name, try to create one and pass it back
+    $method = _commerce_qbo_ui_create_payment_method($payment_method);
+
+    // This is not a required field so it's ok to pass back a blank value
+    return $method ? $method->Id : '';
+  }
+}
+
+/**
+ * Creates a Payment Method in QuickBooks
+ *
+ * @param $payment_method
+ *   Name of the Method to create
+ *
+ * @return bool|IPPIntuitEntity
+ *   A new Payment Method or FALSE if we failed to create one
+ */
+function _commerce_qbo_ui_create_payment_method($payment_method) {
+  $client = qbo_api_client();
+
+  $new_payment_method = new IPPPaymentMethod();
+  $new_payment_method->Name = $payment_method;
+
+  try {
+    $method = $client->Add($new_payment_method);
+    return $method;
+  }
+  catch (Exception $e) {
+    commerce_qbo_ui_log_message("Unable to create new customer [" . $payment_method . "]. ", $e);
     return FALSE;
   }
 }
