@@ -28,16 +28,18 @@ function commerce_qbo_ui_install() {
  */
 function commerce_qbo_ui_enable() {
   // Check for the existence of bundles before creating them
-  if(empty(field_info_bundles('qb_report'))) {
+  if (empty(field_info_bundles('qb_report'))) {
     // Create the QuickBooks Report types
     $qb_report_types = array();
 
-    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('estimate', 'Estimate', t('A report that sends an estimate to the customer.  This is not final and does not require payment.'));
-    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('invoice', 'Invoice', t('A report that sends an invoice to a customer.  This expects a payment by the given due date'));
-    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('payment', 'Payment', t('A receipt for a customer confirming their payment has been made.'));
-    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('refund', 'Refund', t('A receipt of refund to a customer'));
-    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('credit_memo', 'Credit Memo', t('A receipt of credit that the given customer has with your business.'));
-    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('sales_receipt', 'Sales Receipt', t('A sales receipt for the customer\'s and your financial records.'));
+    $t = get_t();
+
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('estimate', $t('Estimate'), $t('A report that sends an estimate to the customer.  This is not final and does not require payment.'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('invoice', $t('Invoice'), $t('A report that sends an invoice to a customer.  This expects a payment by the given due date'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('payment', $t('Payment'), $t('A receipt for a customer confirming their payment has been made.'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('refund', $t('Refund'), $t('A receipt of refund to a customer'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('credit_memo', $t('Credit Memo'), $t('A receipt of credit that the given customer has with your business.'));
+    $qb_report_types[] = commerce_qbo_ui_qb_report_type_new('sales_receipt', $t('Sales Receipt'), $t('A sales receipt for the customer\'s and your financial records.'));
 
     commerce_qbo_ui_qb_report_type_save($qb_report_types);
   }
@@ -59,7 +61,7 @@ function commerce_qbo_ui_disable() {
     '_commerce_qbo_ui_configure_line_item_field_line_item_types',
   );
 
-  foreach($static_vars as $var) {
+  foreach ($static_vars as $var) {
     drupal_static_reset($var);
   }
 }
@@ -100,7 +102,7 @@ function commerce_qbo_ui_configure_entity_fields() {
  */
 function _commerce_qbo_ui_configure_line_item_field($bundle) {
   // Payment transactions don't use this particular Line
-  if($bundle == 'payment') {
+  if ($bundle == 'payment') {
     return;
   }
 
@@ -115,9 +117,9 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
   // It's not enough to check the static cache, because the fields array
   // depends on the existing line item types.  So we first check to see if the
   // types have changed names or additions/deletions have been made.
-  if(isset($line_item_types)) {
+  if (isset($line_item_types)) {
     $current_line_items = commerce_line_item_type_get_name();
-    if($line_item_types == $current_line_items) {
+    if ($line_item_types == $current_line_items) {
       $build_fields = FALSE;
     }
   }
@@ -126,7 +128,7 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
   }
 
   // Builds the fields if the line items have changed or this is our first run
-  if($build_fields) {
+  if ($build_fields) {
     $fields_array = array(
       // Field Collection field
       array(
@@ -165,7 +167,7 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
           'field_name' => $module . '_line_item_type',
           'entity_type' => 'field_collection_item',
           'bundle' => $module . '_line_item_collection',
-          'label' => 'Line item to create QBO Line for',
+          'label' => $t('Line item to create QBO Line for'),
           'cardinality' => FIELD_CARDINALITY_UNLIMITED,
           'description' => $t('Choose what Order line item this Line should be generated from.'),
           'widget' => array('type' => 'options_select'),
@@ -209,9 +211,9 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
           'field_name' => $module . '_line_description',
           'entity_type' => 'field_collection_item',
           'bundle' => $module . '_line_item_collection',
-          'label' => 'Description',
+          'label' => $t('Description'),
           'cardinality' => 1,
-          'description' => 'Leave blank to use the Item description defined in your QuickBooks account.',
+          'description' => $t('Leave blank to use the Item description defined in your QuickBooks account.'),
           'widget' => array(
             'type' => 'text_textarea',
             'rows' => 10,
@@ -301,7 +303,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
   $bundle_fields = &drupal_static(__FUNCTION__);
   $module = "commerce_qbo_ui";
 
-  if(!isset($bundle_fields)) {
+  if (!isset($bundle_fields)) {
     $deposit_field = _commerce_qbo_ui_add_deposit_account_field($module);
 
     // We need to set up the bundle fields for the first time
@@ -385,7 +387,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'field_name' => $module . '_tax_type',
             'entity_type' => 'qb_report',
             'bundle' => '',
-            'label' => 'Tax Code',
+            'label' => $t('Tax Code'),
             'cardinality' => 1,
             'description' => $t('To manually select a tax rate to always apply ' .
               'to this transaction, enter a valid tax code as defined in your ' .
@@ -416,7 +418,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'field_name' => $module . '_tax_type_s',
             'entity_type' => 'qb_report',
             'bundle' => '',
-            'label' => 'Tax Code',
+            'label' => $t('Tax Code'),
             'cardinality' => 1,
             'description' => $t('Select a tax rate to apply to this transaction, ' .
               'or leave unselected to automatically detect if tax applies to the order.'),
@@ -441,6 +443,28 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
       ),
       'payment' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
+        array(
+          'field' => array(
+            'field_name' => $module . '_memo',
+            'type' => 'text_long',
+            'cardinality' => 1,
+          ),
+          'instance' => array(
+            'field_name' => $module . '_memo',
+            'entity_type' => 'qb_report',
+            'bundle' => '',
+            'label' => $t('Memo'),
+            'cardinality' => 1,
+            'description' => $t('A private memo for accountants.'),
+            'widget' => array(
+              'type' => 'text_textarea',
+              'rows' => 10,
+              'weight' => 12,
+            ),
+            'settings' => array('text_processing' => 0),
+            'required' => 0,
+          ),
+        ),
         $deposit_field[0],
         $deposit_field[1],
       ),
@@ -463,7 +487,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'field_name' => $module . '_refund_account',
             'entity_type' => 'qb_report',
             'bundle' => 'refund',
-            'label' => 'Refund from Account',
+            'label' => $t('Refund from Account'),
             'cardinality' => 1,
             'description' => $t('The account ID from which refunds will be drawn in order to credit a customer.'),
             'widget' => array(
@@ -491,7 +515,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
             'field_name' => $module . '_refund_acc_s',
             'entity_type' => 'qb_report',
             'bundle' => '',
-            'label' => 'Refund from Account',
+            'label' => $t('Refund from Account'),
             'cardinality' => 1,
             'description' => $t('The account ID from which refunds will be drawn in order to credit a customer.'),
             'widget' => array(
@@ -522,7 +546,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
     }
   }
 
-  if($bundle != "payment") {
+  if ($bundle != "payment") {
     foreach ($bundle_fields['all'] as $field) {
       // Set the bundle since the cached fields array can't set it for 'all' fields
       $field['instance']['bundle'] = $bundle;
@@ -549,6 +573,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
 function _commerce_qbo_ui_add_transaction_date_field($module) {
   $t = get_t();
 
+  // @todo: For this function and the other field building ones the label should also be wrapped in $t()
   return array(
     'field' => array(
       'field_name' => $module . '_txn_date',
@@ -559,7 +584,7 @@ function _commerce_qbo_ui_add_transaction_date_field($module) {
       'field_name' => $module . '_txn_date',
       'entity_type' => 'qb_report',
       'bundle' => '',
-      'label' => 'Transaction date',
+      'label' => $t('Transaction date'),
       'cardinality' => 1,
       'description' => $t('Leave blank to automatically set to the date the transaction is generated.'),
       'widget' => array(
@@ -634,7 +659,7 @@ function _commerce_qbo_ui_add_shipping_date_field($module) {
       'field_name' => $module . '_shipping_date',
       'entity_type' => 'qb_report',
       'bundle' => '',
-      'label' => 'Order will be shipped in',
+      'label' => $t('Order will be shipped in'),
       'cardinality' => 1,
       'description' => $t('Leave blank if orders are typically shipped the same day.'),
       'widget' => array(
@@ -669,7 +694,7 @@ function _commerce_qbo_ui_add_deposit_account_field($module) {
         'field_name' => $module . '_deposit_account',
         'entity_type' => 'qb_report',
         'bundle' => '',
-        'label' => 'Deposit Account',
+        'label' => $t('Deposit Account'),
         'cardinality' => 1,
         'description' => $t('The account ID that the funds will be deposited into.'),
         'widget' => array(
@@ -697,7 +722,7 @@ function _commerce_qbo_ui_add_deposit_account_field($module) {
         'field_name' => $module . '_deposit_acc_s',
         'entity_type' => 'qb_report',
         'bundle' => '',
-        'label' => 'Deposit Account',
+        'label' => $t('Deposit Account'),
         'cardinality' => 1,
         'description' => $t('The account ID that the funds will be deposited into.'),
         'widget' => array(
@@ -875,7 +900,7 @@ function commerce_qbo_ui_uninstall() {
     'commerce_qbo_ui_run',
   );
 
-  foreach($vars as $var) {
+  foreach ($vars as $var) {
     variable_del($var);
   }
 
@@ -884,12 +909,12 @@ function commerce_qbo_ui_uninstall() {
   $fields = _commerce_qbo_ui_fields();
 
   // We delete field collections separately due to their more unique nature
-  foreach($fields['collection_field'] as $field) {
+  foreach ($fields['collection_field'] as $field) {
     $name = 'c_qbo_ui' . $field;
     $bundle = 'c_qbo_ui_line_item_collection';
 
     $instance = field_info_instance('field_collection_item', $name, $bundle);
-    if($instance) {
+    if ($instance) {
       field_delete_instance($instance);
     }
 
@@ -897,13 +922,13 @@ function commerce_qbo_ui_uninstall() {
   }
 
   // Delete regular fields belonging to qb_report bundles
-  foreach($fields['field'] as $field) {
+  foreach ($fields['field'] as $field) {
     $name = "commerce_qbo_ui" . $field;
 
     // Clear all instances belonging to the bundles
-    foreach($bundles as $bundle) {
+    foreach ($bundles as $bundle) {
       $instance = field_info_instance('qb_report', $name, $bundle);
-      if($instance) {
+      if ($instance) {
         field_delete_instance($instance);
       }
     }
@@ -912,14 +937,14 @@ function commerce_qbo_ui_uninstall() {
   }
 
   // Delete the collection entities themselves
-  foreach($fields['collection'] as $collection) {
+  foreach ($fields['collection'] as $collection) {
     $name = 'c_qbo_ui' . $collection;
     $type = 'qb_report';
 
     // Clear all instances belonging to the bundles
-    foreach($bundles as $bundle) {
+    foreach ($bundles as $bundle) {
       $instance = field_info_instance($type, $name, $bundle);
-      if($instance) {
+      if ($instance) {
         field_delete_instance($instance);
       }
     }

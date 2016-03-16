@@ -7,6 +7,7 @@
  *
  * @return array
  */
+// @todo: Do these even do anything? I can't find them being invoked anywhere.
 function commerce_qbo_ui_rules_event_info() {
   return array(
     'commerce_qbo_ui_report_sent' => array(
@@ -34,6 +35,7 @@ function commerce_qbo_ui_rules_event_info() {
  *
  * @return array
  */
+// @todo: Some of the label indexes don't have t()'s.
 function commerce_qbo_ui_rules_action_info() {
   return array(
     'commerce_qbo_ui_send_report' => array(
@@ -42,7 +44,7 @@ function commerce_qbo_ui_rules_action_info() {
       'parameter' => array(
         'order_id' => array(
           'type' => 'commerce_order',
-          'label' => 'The order object',
+          'label' => t('The order object'),
         ),
         'report_type' => array(
           'type' => 'text',
@@ -57,7 +59,7 @@ function commerce_qbo_ui_rules_action_info() {
       'provides' => array(
         'success_report' => array(
           'type' => 'boolean',
-          'label' => 'Report Status',
+          'label' => t('Report Status'),
         ),
       ),
     ),
@@ -68,11 +70,11 @@ function commerce_qbo_ui_rules_action_info() {
       'parameter' => array(
         'order_id' => array(
           'type' => 'commerce_order',
-          'label' => 'The order object',
+          'label' => t('The order object'),
         ),
         'memo' => array(
           'type' => 'text',
-          'label' => 'Memo for pending report',
+          'label' => t('Memo for pending report'),
           'description' => t('Should be a description of what kind of report you want this to be sent as.'),
           'default value' => 'invoice',
         ),
@@ -94,7 +96,7 @@ function commerce_qbo_ui_rule_action_report_options() {
     ->condition('status', 1, '=')
     ->execute();
 
-  if($report_types->rowCount()) {
+  if ($report_types->rowCount()) {
     while($row = $report_types->fetchAssoc()) {
       $options[$row['rtid']] = $row['name'];
     }

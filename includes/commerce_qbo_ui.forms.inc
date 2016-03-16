@@ -37,24 +37,24 @@ function commerce_qbo_ui_qb_report_form($form, &$form_state, $report) {
 
   // Check to see if this form has an interchangeable field(s)
   $pre = "commerce_qbo_ui";
-  if(isset($form[$pre . '_deposit_acc_s'])) {
-    if(count($form[$pre . '_deposit_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
+  if (isset($form[$pre . '_deposit_acc_s'])) {
+    if (count($form[$pre . '_deposit_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
       unset($form[$pre . '_deposit_account']);
     }
     else {
       unset($form[$pre . '_deposit_acc_s']);
     }
   }
-  if(isset($form[$pre . '_refund_acc_s'])) {
-    if(count($form[$pre . '_refund_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
+  if (isset($form[$pre . '_refund_acc_s'])) {
+    if (count($form[$pre . '_refund_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
       unset($form[$pre . '_refund_account']);
     }
     else {
       unset($form[$pre . '_refund_acc_s']);
     }
   }
-  if(isset($form[$pre . '_tax_type_s'])) {
-    if(count($form[$pre . '_tax_type_s'][LANGUAGE_NONE]['#options']) > 1) {
+  if (isset($form[$pre . '_tax_type_s'])) {
+    if (count($form[$pre . '_tax_type_s'][LANGUAGE_NONE]['#options']) > 1) {
       unset($form[$pre . '_tax_type']);
     }
     else {
@@ -185,11 +185,11 @@ function commerce_qbo_ui_qb_report_delete_form_submit($form, &$form_state) {
   $report = $form_state['qb_report'];
 
   if (commerce_qbo_ui_qbreport_delete($report->rtid)) {
-    drupal_set_message(t('%name has been deleted.', array('%name' => $report->name)));
-    watchdog('qb_report', 'Deleted qb_report %name.', array('%name' => $report->name), WATCHDOG_NOTICE);
+    drupal_set_message(t('@name has been deleted.', array('@name' => $report->name)));
+    watchdog('commerce_qbo_ui', 'Deleted qb_report @name.', array('@name' => $report->name), WATCHDOG_NOTICE);
     $form_state['redirect'] = 'admin/commerce/commerce_qbo_ui/qb_reports';
   }
   else {
-    drupal_set_message(t('%name could not be deleted.', array('%name' => $report->name)), 'error');
+    drupal_set_message(t('@name could not be deleted.', array('@name' => $report->name)), 'error');
   }
 }

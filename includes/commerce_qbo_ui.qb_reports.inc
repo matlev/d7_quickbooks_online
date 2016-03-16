@@ -25,7 +25,6 @@ function commerce_qbo_ui_qb_report_add_page() {
  */
 function theme_commerce_qbo_ui_qb_report_add_list($variables) {
   $content = $variables['content'];
-  $output = '';
 
   $output = '<dl class="commerce-qbo-ui-qb-report-type-list">';
   foreach ($content as $item) {

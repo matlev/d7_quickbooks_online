@@ -40,8 +40,6 @@ class QBOReportEntityController extends EntityAPIController {
    *   SAVED_NEW or SAVED_UPDATED depending on the operation performed.
    */
   public function save($report, DatabaseTransaction $transaction = NULL) {
-    global $user;
-
     // Hardcode the changed time.
     $report->changed = REQUEST_TIME;
 

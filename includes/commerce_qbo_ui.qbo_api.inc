@@ -45,7 +45,7 @@ function commerce_qbo_ui_start_txn($order_id, $qb_report) {
   // a bundle with a mis-formatted name or one that doesn't match a transaction
   // type, or QuickBooks has defined a new transaction type but the current qbo
   // library is out of date.
-  if(!function_exists($func)) {
+  if (!function_exists($func)) {
     $message = t('Unable to process transaction request: @func does not exist.', array('@func' => $txn));
     commerce_qbo_ui_log_message($message);
     return TRANSACTION_FAILURE;
@@ -55,7 +55,7 @@ function commerce_qbo_ui_start_txn($order_id, $qb_report) {
   // the transaction functions, or return false if the connection fails.
   try {
     $client = qbo_api_client();
-    if($client === NULL) {
+    if ($client === NULL) {
       $error = t('Missing or corrupt tokens, please verify API tokens in qbo_api module settings.');
       throw new Exception($error);
     }
@@ -70,7 +70,6 @@ function commerce_qbo_ui_start_txn($order_id, $qb_report) {
   }
 
   // Retrieve the order
-  watchdog('commerce_qbo_ui', print_r($order_id, TRUE));
   $order = commerce_order_load($order_id);
 
   // Call the defined transaction method
@@ -121,14 +120,14 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
-  if($txn->CustomerRef == FALSE) {
+  if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
   // Initialize Line array
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
-  if(!$success) {
+  if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
@@ -169,14 +168,14 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
-  if($txn->CustomerRef == FALSE) {
+  if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
   // Initialize Line array
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
-  if(!$success) {
+  if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
@@ -187,11 +186,11 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
   // Pass in non-mandatory value (specific)
-  if(!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
+  if (!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
     $ship_in = $ewr->commerce_qbo_ui_shipping_date->value();
     $txn->ShipDate = format_date(REQUEST_TIME + $ship_in, 'custom', 'Y-m-d');
   }
-  if(!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
+  if (!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
     $expires_in = $ewr->commerce_qbo_ui_expiration_date->value();
     $txn->ExpirationDate = format_date(REQUEST_TIME + $expires_in, 'custom', 'Y-m-d');
   }
@@ -228,14 +227,14 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
-  if($txn->CustomerRef == FALSE) {
+  if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
   // Initialize Line array
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
-  if(!$success) {
+  if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
@@ -246,11 +245,11 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
   // Pass in non-mandatory value (specific)
-  if(!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
+  if (!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
     $ship_in = $ewr->commerce_qbo_ui_shipping_date->value();
     $txn->ShipDate = format_date(REQUEST_TIME + $ship_in, 'custom', 'Y-m-d');
   }
-  if(!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
+  if (!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
     $expires_in = $ewr->commerce_qbo_ui_expiration_date->value();
     $txn->ExpirationDate = format_date(REQUEST_TIME + $expires_in, 'custom', 'Y-m-d');
   }
@@ -281,7 +280,7 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
-  $ewo = entity_metadata_wrapper('comerce_order', $order);
+  $ewo = entity_metadata_wrapper('commerce_order', $order);
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
 
   // Initialize the transaction object
@@ -289,7 +288,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
-  if($txn->CustomerRef == FALSE) {
+  if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
@@ -301,7 +300,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
 
   // Deposit account
-  if($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
+  if ($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
     $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
   }
   else {
@@ -343,24 +342,24 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
-  if($txn->CustomerRef == FALSE) {
+  if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
   // Initialize Line array
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
-  if(!$success) {
+  if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
   // Set Refund Account
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
-  if($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
+  if ($ewr->commerce_qbo_ui_refund_account->value() == NULL) {
+    $deposit_account_ref = $ewr->commerce_qbo_ui_refund_acc_s->value();
   }
   else {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_refund_account->value();
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
@@ -400,7 +399,7 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
-  if($txn->CustomerRef == FALSE) {
+  if ($txn->CustomerRef == FALSE) {
     // Customer Ref isn't required for a Sales Receipt
     $txn->CustomerRef = '';
   }
@@ -408,7 +407,7 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
   // Initialize Line array
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
-  if(!$success) {
+  if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
@@ -422,7 +421,7 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
   $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
-  if($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
+  if ($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
     $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
   }
   else {
@@ -465,13 +464,13 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
 
   // Loop through the commerce line items, and build the Line according to the
   // qb_report configuration
-  foreach($ewo->commerce_line_items->getIterator() as $line_item_wrapper) {
+  foreach ($ewo->commerce_line_items->getIterator() as $line_item_wrapper) {
     // Get the regular commerce_line_item object
     $line_item = commerce_line_item_load($line_item_wrapper->line_item_id->value());
     $line_item_type = $line_item_wrapper->type->value();
 
-    foreach($ewr->c_qbo_ui_line_item_collection->getIterator() as $qb_collection) {
-      if($qb_collection->c_qbo_ui_line_item_type->value() == $line_item_type) {
+    foreach ($ewr->c_qbo_ui_line_item_collection->getIterator() as $qb_collection) {
+      if ($qb_collection->c_qbo_ui_line_item_type->value() == $line_item_type) {
         // Replace tokens in product/service and description fields
         $data = array('commerce-order' => $order, 'commerce-line-item' => $line_item);
         $parsed_text = _commerce_qbo_ui_replace_tokens($qb_collection, $data);
@@ -483,17 +482,17 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
 
         // Item Ref
         $item_ref = _commerce_qbo_ui_get_item_ref($parsed_text['item_name'], $parsed_text['description'], $line_item_wrapper, $qb_collection);
-        if($item_ref === FALSE) {
+        if ($item_ref === FALSE) {
           // Item ref is a required field, we can't continue without it
           return FALSE;
         }
         $row->SalesItemLineDetail->ItemRef = $item_ref;
 
         // Quantity
-        if($qb_collection->c_qbo_ui_line_quantity->value() != NULL) {
+        if ($qb_collection->c_qbo_ui_line_quantity->value() != NULL) {
           $row->SalesItemLineDetail->Qty = $qb_collection->c_qbo_ui_line_quantity->value();
         }
-        else if($line_item_wrapper->quantity->value() != NULL) {
+        elseif ($line_item_wrapper->quantity->value() != NULL) {
           $row->SalesItemLineDetail->Qty = intval($line_item_wrapper->quantity->value());
         }
         else {
@@ -501,10 +500,10 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
         }
 
         // Unit Price
-        if($qb_collection->c_qbo_ui_line_rate->value() != NULL) {
+        if ($qb_collection->c_qbo_ui_line_rate->value() != NULL) {
           $row->SalesItemLineDetail->UnitPrice = $qb_collection->c_qbo_ui_line_rate->value();
         }
-        else if($line_item_wrapper->commerce_unit_price->amount_decimal->value() != NULL) {
+        elseif ($line_item_wrapper->commerce_unit_price->amount_decimal->value() != NULL) {
           $row->SalesItemLineDetail->UnitPrice = $line_item_wrapper->commerce_unit_price->amount_decimal->value();
         }
         else {
@@ -518,7 +517,7 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
         // @TODO: Distinguish between Global and US account
 
         // Description
-        if(!empty($qb_collection->c_qbo_ui_line_description->value())) {
+        if (!empty($qb_collection->c_qbo_ui_line_description->value())) {
           $row->Description = $parsed_text['description'];
         }
 
@@ -603,8 +602,8 @@ function _commerce_qbo_ui_get_item_ref($item_name, $description, $line_item, $qb
   $query = "SELECT Id FROM Item WHERE Name = '$item_name'";
   $items = qbo_api_query($query, TRUE);
 
-  if(count($items)) {
-    foreach($items as $item) {
+  if (count($items)) {
+    foreach ($items as $item) {
       $id = $item->Id;
     }
 
@@ -644,7 +643,7 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
   $new_item->Description = $description;
 
   // Calculate Unit price for this item
-  if(!empty($qb_collection->c_qbo_ui_line_rate->value())) {
+  if (!empty($qb_collection->c_qbo_ui_line_rate->value())) {
     $new_item->UnitPrice = $qb_collection->c_qbo_ui_line_rate->value();
   }
   else {
@@ -681,15 +680,15 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
 function commerce_qbo_ui_get_customer_id($order) {
   // Wrap the order and report
   $ewo = entity_metadata_wrapper('commerce_order', $order);
-
+  
   $customer_name = check_plain($ewo->commerce_customer_billing->commerce_customer_address->name_line->value());
   $email = check_plain($ewo->commerce_customer_billing->user->mail->value());
 
   $query = "SELECT Id FROM Customer WHERE DisplayName = '$customer_name'";
   $customers = qbo_api_query($query, TRUE);
 
-  if(count($customers)) {
-    foreach($customers as $customer) {
+  if (count($customers)) {
+    foreach ($customers as $customer) {
       $id = $customer->Id;
     }
 
@@ -701,8 +700,8 @@ function commerce_qbo_ui_get_customer_id($order) {
     $query = "SELECT Id FROM Customer WHERE PrimaryEmailAddr = '$email'";
     $customers = qbo_api_query($query, TRUE);
 
-    if(count($customers)) {
-      foreach($customers as $customer) {
+    if (count($customers)) {
+      foreach ($customers as $customer) {
         $id = $customer->Id;
       }
 
@@ -781,8 +780,8 @@ function commerce_qbo_ui_get_payment_method_ref($payment_method) {
 
   $payment_methods = qbo_api_query($query, TRUE);
 
-  if(count($payment_methods)) {
-    foreach($payment_methods as $method) {
+  if (count($payment_methods)) {
+    foreach ($payment_methods as $method) {
       $id = $method->Id;
     }
 

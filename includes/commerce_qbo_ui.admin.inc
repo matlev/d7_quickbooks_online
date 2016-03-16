@@ -39,22 +39,16 @@ function commerce_qbo_ui_active_rules() {
  * @param $form
  * @param $form_state
  */
-function commerce_qbo_ui_config($form, &$form_state) {
+function commerce_qbo_ui_config_form($form, &$form_state) {
   commerce_qbo_ui_ready_check();
 
   // Allow the user to populate certain field data with select lists pull from
   // their quickbooks account.  This is irreversible.
-  if(variable_get('commerce_qbo_ui_run', 0)) {
+  if (variable_get('commerce_qbo_ui_run', 0)) {
     $form['field_actions'] = array(
       '#type' => 'fieldset',
       '#title' => t('Request QuickBooks data for form fields'),
-      '#description' => t('Populates fields in the qb_reports forms with data pulled ' .
-        'from QuickBooks, allowing admins to select from a list of acceptable values ' .
-        'instead of manually inputting IDs.<br/>' .
-        'Affected fields: <i>Deposit Account, Refund Account, Tax Rate</i><br/>' .
-        '<b>WARNING: This process is irreversible.  You will be unable to go back ' .
-        'to direct ID input, but you can update the lists by pressing this button ' .
-        'again.</b>'),
+      '#description' => t('Populates fields in the qb_reports forms with data pulled from QuickBooks, allowing admins to select from a list of acceptable values instead of manually inputting IDs.<br/>Affected fields: <i>Deposit Account, Refund Account, Tax Rate</i><br/><b>WARNING: This process is irreversible.  You will be unable to go back to direct ID input, but you can update the lists by pressing this button again.</b>'),
     );
     $form['field_actions']['commerce_qbo_ui_populate_field_data'] = array(
       '#type' => 'submit',
@@ -80,9 +74,7 @@ function commerce_qbo_ui_config($form, &$form_state) {
 
   // A safety net for transferring reports to staging
   $form['commerce_qbo_ui_stage_premature_reports'] = array(
-    '#description' => t('If enabled, any reports that are sent before the module is fully ' .
-      'configured will be caught and passed into staging instead.<br><em>You will still ' .
-      'be unable to send these reports until configuration is complete.</em>'),
+    '#description' => t('If enabled, any reports that are sent before the module is fully configured will be caught and passed into staging instead.<br><em>You will still be unable to send these reports until configuration is complete.</em>'),
     '#type' => 'radios',
     '#title' => t('Catch reports sent too early'),
     '#options' => array(
@@ -120,7 +112,7 @@ function commerce_qbo_ui_config($form, &$form_state) {
 function commerce_qbo_ui_populate_field_data($form, &$form_state) {
   // We should only be able to access this function if the api is fully
   // configured, but double check anyways
-  if(qbo_api_client()) {
+  if (qbo_api_client()) {
     // Grab QuickBooks values
     $accounts = qbo_api_query_as_options('SELECT Id, Name FROM Account', '', TRUE);
     $tax_codes = qbo_api_query_as_options('SELECT Id, Name FROM TaxCode', '', TRUE);
@@ -140,9 +132,10 @@ function commerce_qbo_ui_populate_field_data($form, &$form_state) {
     $field['settings']['allowed_values'] = $tax_codes;
     field_update_field($field);
 
-    drupal_set_message("Fields populated successfully.");
-  } else {
-    drupal_set_message("Failed to populate lists.");
+    drupal_set_message(t("Fields populated successfully."));
+  }
+  else {
+    drupal_set_message(t("Failed to populate lists."));
   }
 }
 
@@ -155,7 +148,7 @@ function commerce_qbo_ui_populate_field_data($form, &$form_state) {
  *  - Remove order (removes from the pending list, a cron will clear the database)
  *  - Send report (Sends the report in the chosen format.  Throws validation errors if no format is selected)
  *
- * If the QBO API is missing the neccessary app tokens then the module will not allow reports to be sent
+ * If the QBO API is missing the necessary app tokens then the module will not allow reports to be sent
  */
 function commerce_qbo_ui_pending_reports($form, $form_state) {
   commerce_qbo_ui_ready_check();
@@ -163,8 +156,8 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
   // Remove and deleted rows
   $trigger = isset($form_state['triggering_element']) ? $form_state['triggering_element'] : NULL;
 
-  if($trigger != NULL) {
-    if($trigger['#value'] == 'Remove') {
+  if ($trigger != NULL) {
+    if ($trigger['#value'] == 'Remove') {
       $srid = str_replace('commerce_qbo_ui_remove_', '',$trigger['#name']);
 
       // Convert the ID to an int
@@ -172,8 +165,8 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
 
       _commerce_qbo_ui_clear_sr_by_id($srid);
     }
-    else if($trigger['#value'] == 'Submit') {
-      $srid = str_replace('commerce_qbo_ui_submit_', '',$trigger['#name']);
+    elseif ($trigger['#value'] == 'Submit') {
+      $srid = str_replace('commerce_qbo_ui_submit_', '', $trigger['#name']);
 
       // Convert the ID to an int
       $srid *= 1;
@@ -186,15 +179,33 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
 
       $order_id = $result['order_id'];
       $report_type = $form_state['values']['commerce_qbo_ui_report_type'];
+      $notice = '';
 
-      if(commerce_qbo_ui_send_report($order_id, $report_type)) {
+      if (commerce_qbo_ui_send_report($order_id, $report_type)) {
         // We can remove the report from pending if the transaction is successful
         _commerce_qbo_ui_clear_sr_by_id($srid);
+
+        if (user_access('view commerce qbo ui messages')) {
+          $alert = drupal_get_messages('commerce_qbo_ui');
+          foreach ($alert['commerce_qbo_ui'] as $msg) {
+            $notice .= '<div class="messages status">' . $msg . '</div>';
+          }
+        }
       }
+      else {
+        if (user_access('view commerce qbo ui messages')) {
+          $alert = drupal_get_messages('commerce_qbo_ui');
+          foreach ($alert['commerce_qbo_ui'] as $msg) {
+            $notice .= '<div class="messages error">' . $msg . '</div>';
+          }
+        }
+      }
+
+      $build['commerce_qbo_ui_alert'] = array(
+        '#markup' => $notice,
+      );
     }
   }
-
-  $rows = array();
 
   $reports_pending = db_select('commerce_qbo_ui_staged_report', 'sr')
     ->fields('sr', array('rid', 'order_id', 'memo'))
@@ -231,7 +242,11 @@ function commerce_qbo_ui_reports_overview() {
     ->condition('r.status', 1, '=')
     ->execute();
 
-  $header = array(t('Name'), t('Type of Report'), array('data' => t('Operations'), 'colspan' => '2'));
+  $header = array(
+    t('Name'),
+    t('Type of Report'),
+    array('data' => t('Operations'), 'colspan' => '2'),
+  );
   $rows = array();
 
   while($qb_report = $results->fetchAssoc()) {
@@ -252,7 +267,7 @@ function commerce_qbo_ui_reports_overview() {
     '#theme' => 'table',
     '#header' => $header,
     '#rows' => $rows,
-    '#empty' => t('No reports available. <a href="@link">Add a report</a>.', array('@link' => url('admin/commerce/commerce_qbo_ui/qb_reports/add'))),
+    '#empty' => t('No reports available. !link', array('!link' => l(t('Add a report.'), 'admin/commerce/commerce_qbo_ui/qb_reports/add'))),
   );
 
   return $build;
@@ -279,7 +294,7 @@ function commerce_qbo_ui_display_logs() {
     ->orderByHeader($header)
     ->execute();
 
-  foreach($result as $qbo_log) {
+  foreach ($result as $qbo_log) {
     $rows[] = array('data' =>
       array(
         // Cells
