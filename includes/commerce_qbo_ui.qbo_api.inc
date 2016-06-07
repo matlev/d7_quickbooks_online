@@ -137,6 +137,9 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
+  // allow modules to alter the QuickBooks object before we pass the transaction
+  drupal_alter('commerce_qbo_ui_IPPCreditMemo', $txn, $order);
+
   // Finally, attempt to pass the transaction to QuickBooks
   try {
     $txn = $client->Add($txn);
@@ -194,6 +197,9 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
   if (!empty($expiration_date)) {
     $txn->ExpirationDate = format_date(REQUEST_TIME + $expiration_date, 'custom', 'Y-m-d');
   }
+
+  // allow modules to alter the QuickBooks object before we pass the transaction
+  drupal_alter('commerce_qbo_ui_IPPEstimate', $txn, $order);
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -257,6 +263,9 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
     $txn->SalesTermRef = $sales_term;
   }
 
+  // allow modules to alter the QuickBooks object before we pass the transaction
+  drupal_alter('commerce_qbo_ui_IPPInvoice', $txn, $order);
+
   // Finally, attempt to pass the transaction to QuickBooks
   try {
     $txn = $client->Add($txn);
@@ -314,6 +323,9 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   // Memo
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
 
+  // allow modules to alter the QuickBooks object before we pass the transaction
+  drupal_alter('commerce_qbo_ui_IPPPayment', $txn, $order);
+
   // Finally, attempt to pass the transaction to QuickBooks
   try {
     $txn = $client->Add($txn);
@@ -370,6 +382,9 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+
+  // allow modules to alter the QuickBooks object before we pass the transaction
+  drupal_alter('commerce_qbo_ui_IPPRefund', $txn, $order);
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -432,6 +447,8 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
+  // allow modules to alter the QuickBooks object before we pass the transaction
+  drupal_alter('commerce_qbo_ui_IPPSalesReceipt', $txn, $order);
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
