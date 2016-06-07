@@ -116,7 +116,7 @@ function commerce_qbo_ui_route_txn($qb_report) {
  */
 function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client) {
 // Initialize the transaction object
-  $txn = new IPPCreditMemo();
+  $txn = new \Intuit\Ipp\Data\IPPCreditMemo();
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -164,7 +164,7 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
  */
 function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
 // Initialize the transaction object
-  $txn = new IPPEstimate();
+  $txn = new \Intuit\Ipp\Data\IPPEstimate();
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -186,15 +186,14 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
   // Pass in non-mandatory value (specific)
-  if (!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
-    $ship_in = $ewr->commerce_qbo_ui_shipping_date->value();
-    $txn->ShipDate = format_date(REQUEST_TIME + $ship_in, 'custom', 'Y-m-d');
+  $shipping_date = $ewr->commerce_qbo_ui_shipping_date->value();
+  if (!empty($shipping_date)) {
+    $txn->ShipDate = format_date(REQUEST_TIME + $shipping_date, 'custom', 'Y-m-d');
   }
-  if (!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
-    $expires_in = $ewr->commerce_qbo_ui_expiration_date->value();
-    $txn->ExpirationDate = format_date(REQUEST_TIME + $expires_in, 'custom', 'Y-m-d');
+  $expiration_date = $ewr->commerce_qbo_ui_expiration_date->value();
+  if (!empty($expiration_date)) {
+    $txn->ExpirationDate = format_date(REQUEST_TIME + $expiration_date, 'custom', 'Y-m-d');
   }
-
 
   // Finally, attempt to pass the transaction to QuickBooks
   try {
@@ -223,7 +222,7 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
  */
 function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
   // Initialize the transaction object
-  $txn = new IPPInvoice();
+  $txn = new \Intuit\Ipp\Data\IPPInvoice();
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -245,13 +244,17 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
   // Pass in non-mandatory value (specific)
-  if (!empty($ewr->commerce_qbo_ui_shipping_date->value())) {
-    $ship_in = $ewr->commerce_qbo_ui_shipping_date->value();
-    $txn->ShipDate = format_date(REQUEST_TIME + $ship_in, 'custom', 'Y-m-d');
+  $shipping_date = $ewr->commerce_qbo_ui_shipping_date->value();
+  if (!empty($shipping_date)) {
+    $txn->ShipDate = format_date(REQUEST_TIME + $shipping_date, 'custom', 'Y-m-d');
   }
-  if (!empty($ewr->commerce_qbo_ui_expiration_date->value())) {
-    $expires_in = $ewr->commerce_qbo_ui_expiration_date->value();
-    $txn->ExpirationDate = format_date(REQUEST_TIME + $expires_in, 'custom', 'Y-m-d');
+  $expiration_date = $ewr->commerce_qbo_ui_expiration_date->value();
+  if (!empty($expiration_date)) {
+    $txn->ExpirationDate = format_date(REQUEST_TIME + $expiration_date, 'custom', 'Y-m-d');
+  }
+  $sales_term = $ewr->commerce_qbo_ui_sales_term->value();
+  if (!empty($sales_term)) {
+    $txn->SalesTermRef = $sales_term;
   }
 
   // Finally, attempt to pass the transaction to QuickBooks
@@ -284,7 +287,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
 
   // Initialize the transaction object
-  $txn = new IPPPayment();
+  $txn = new \Intuit\Ipp\Data\IPPPayment();
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -338,7 +341,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
  */
 function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
   // Initialize the transaction object
-  $txn = new IPPRefundReceipt();
+  $txn = new \Intuit\Ipp\Data\IPPRefundReceipt();
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -395,7 +398,7 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
  */
 function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$client) {
 // Initialize the transaction object
-  $txn = new IPPSalesReceipt();
+  $txn = new \Intuit\Ipp\Data\IPPSalesReceipt();
 
   // Attach the customer to the transaction
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -476,9 +479,9 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
         $parsed_text = _commerce_qbo_ui_replace_tokens($qb_collection, $data);
 
         // Build the line
-        $row = new IPPLine();
+        $row = new \Intuit\Ipp\Data\IPPLine();
         $row->DetailType = 'SalesItemLineDetail';
-        $row->SalesItemLineDetail = new IPPSalesItemLineDetail();
+        $row->SalesItemLineDetail = new \Intuit\Ipp\Data\IPPSalesItemLineDetail();
 
         // Item Ref
         $item_ref = _commerce_qbo_ui_get_item_ref($parsed_text['item_name'], $parsed_text['description'], $line_item_wrapper, $qb_collection);
@@ -517,7 +520,8 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
         // @TODO: Distinguish between Global and US account
 
         // Description
-        if (!empty($qb_collection->c_qbo_ui_line_description->value())) {
+        $line_description = $qb_collection->c_qbo_ui_line_description->value();
+        if (!empty($line_description)) {
           $row->Description = $parsed_text['description'];
         }
 
@@ -573,11 +577,14 @@ function _commerce_qbo_ui_get_payment_method($order) {
 function  _commerce_qbo_ui_replace_tokens($qb_collection, $data = array()) {
   $return = array();
 
+  // Remove tokens from final text if no replacements are found
+  $options = array('clear' => TRUE);
+
   $text = $qb_collection->c_qbo_ui_product_service->value();
   $return['item_name'] = token_replace($text, $data);
 
   $text = $qb_collection->c_qbo_ui_line_description->value();
-  $return['description'] = token_replace($text, $data);
+  $return['description'] = token_replace($text, $data, $options);
 
   return $return;
 }
@@ -631,20 +638,21 @@ function _commerce_qbo_ui_get_item_ref($item_name, $description, $line_item, $qb
  * @param $qb_collection
  *   Passed through in case a new Item needs to be created
  *
- * @return bool|IPPIntuitEntity
+ * @return bool|\Intuit\Ipp\Data\IPPIntuitEntity
  *   A new Item or FALSE if we failed to create one
  */
 function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_collection) {
   $client = qbo_api_client();
 
-  $new_item = new IPPItem();
+  $new_item = new \Intuit\Ipp\Data\IPPItem();
   $new_item->Name = check_plain($item_name);
   $new_item->Type = "Service";
   $new_item->Description = $description;
 
   // Calculate Unit price for this item
-  if (!empty($qb_collection->c_qbo_ui_line_rate->value())) {
-    $new_item->UnitPrice = $qb_collection->c_qbo_ui_line_rate->value();
+  $line_rate = $qb_collection->c_qbo_ui_line_rate->value();
+  if (!empty($line_rate)) {
+    $new_item->UnitPrice = $line_rate;
   }
   else {
     $new_item->UnitPrice = $line_item->commerce_unit_price->amount_decimal->value();
@@ -684,7 +692,7 @@ function commerce_qbo_ui_get_customer_id($order) {
   $customer_name = check_plain($ewo->commerce_customer_billing->commerce_customer_address->name_line->value());
   $email = check_plain($ewo->commerce_customer_billing->user->mail->value());
 
-  $query = "SELECT Id FROM Customer WHERE DisplayName = '$customer_name'";
+  $query = "SELECT Id FROM Customer WHERE PrimaryEmailAddr = '$email'";
   $customers = qbo_api_query($query, TRUE);
 
   if (count($customers)) {
@@ -697,7 +705,7 @@ function commerce_qbo_ui_get_customer_id($order) {
   else {
     // Try a new query against email instead.  Unfortunately QuickBooks doesn't
     // play well with OR statements in the SQL, so separate queries are necessary
-    $query = "SELECT Id FROM Customer WHERE PrimaryEmailAddr = '$email'";
+    $query = "SELECT Id FROM Customer WHERE DisplayName = '$customer_name'";
     $customers = qbo_api_query($query, TRUE);
 
     if (count($customers)) {
@@ -726,20 +734,20 @@ function commerce_qbo_ui_get_customer_id($order) {
  * @param $ewo
  *   The commerce_order entity wrapper
  *
- * @return bool|IPPIntuitEntity
+ * @return bool|\Intuit\Ipp\Data\IPPIntuitEntity
  *   A new Customer or FALSE if we failed to create one
  */
 function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $client = qbo_api_client();
 
   // Main identifiers
-  $new_customer = new IPPCustomer();
+  $new_customer = new \Intuit\Ipp\Data\IPPCustomer();
   $new_customer->DisplayName = $customer_name;
-  $new_customer->PrimaryEmailAddr = new IPPEmailAddress();
+  $new_customer->PrimaryEmailAddr = new \Intuit\Ipp\Data\IPPEmailAddress();
   $new_customer->PrimaryEmailAddr->Address = check_plain($ewo->commerce_customer_billing->user->mail->value());
 
   // Address (Minimal, Country, State/Province and Postal Code)
-  $new_customer->BillAddr = new IPPPhysicalAddress();
+  $new_customer->BillAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
   $new_customer->BillAddr->Line1 = $ewo->commerce_customer_billing->commerce_customer_address->thoroughfare->value();
   $new_customer->BillAddr->Line2 = $ewo->commerce_customer_billing->commerce_customer_address->premise->value();
   $new_customer->BillAddr->Country = $ewo->commerce_customer_billing->commerce_customer_address->country->value();
@@ -748,7 +756,7 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $new_customer->BillAddr->PostalCode = $ewo->commerce_customer_billing->commerce_customer_address->postal_code->value();
 
   // Shipping Address
-  $new_customer->ShipAddr = new IPPPhysicalAddress();
+  $new_customer->ShipAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
   $new_customer->ShipAddr->Line1 = $ewo->commerce_customer_shipping->commerce_customer_address->thoroughfare->value();
   $new_customer->ShipAddr->Line2 = $ewo->commerce_customer_shipping->commerce_customer_address->premise->value();
   $new_customer->ShipAddr->Country = $ewo->commerce_customer_shipping->commerce_customer_address->country->value();
@@ -802,13 +810,13 @@ function commerce_qbo_ui_get_payment_method_ref($payment_method) {
  * @param $payment_method
  *   Name of the Method to create
  *
- * @return bool|IPPIntuitEntity
+ * @return bool|\Intuit\Ipp\Data\IPPIntuitEntity
  *   A new Payment Method or FALSE if we failed to create one
  */
 function _commerce_qbo_ui_create_payment_method($payment_method) {
   $client = qbo_api_client();
 
-  $new_payment_method = new IPPPaymentMethod();
+  $new_payment_method = new \Intuit\Ipp\Data\IPPPaymentMethod();
   $new_payment_method->Name = $payment_method;
 
   try {

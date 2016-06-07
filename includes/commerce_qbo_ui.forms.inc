@@ -61,6 +61,14 @@ function commerce_qbo_ui_qb_report_form($form, &$form_state, $report) {
       unset($form[$pre . '_tax_type_s']);
     }
   }
+  if (isset($form[$pre . '_sales_term_s'])) {
+    if (count($form[$pre . '_sales_term_s'][LANGUAGE_NONE]['#options']) > 1) {
+      unset($form[$pre . '_sales_term']);
+    }
+    else {
+      unset($form[$pre . '_sales_term_s']);
+    }
+  }
 
   $form['status'] = array(
     '#type' => 'radios',

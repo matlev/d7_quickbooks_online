@@ -116,6 +116,7 @@ function commerce_qbo_ui_populate_field_data($form, &$form_state) {
     // Grab QuickBooks values
     $accounts = qbo_api_query_as_options('SELECT Id, Name FROM Account', '', TRUE);
     $tax_codes = qbo_api_query_as_options('SELECT Id, Name FROM TaxCode', '', TRUE);
+    $terms = qbo_api_query_as_options("SELECT Id, Name FROM Term", '- Select One -', TRUE);
 
     // Edit field values
     $pre = "commerce_qbo_ui";
@@ -130,6 +131,10 @@ function commerce_qbo_ui_populate_field_data($form, &$form_state) {
 
     $field['field_name'] = $pre . "_tax_type_s";
     $field['settings']['allowed_values'] = $tax_codes;
+    field_update_field($field);
+
+    $field['field_name'] = $pre . "_sales_term_s";
+    $field['settings']['allowed_values'] = $terms;
     field_update_field($field);
 
     drupal_set_message(t("Fields populated successfully."));
