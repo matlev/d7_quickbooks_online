@@ -59,6 +59,43 @@ function commerce_qbo_ui_config_form($form, &$form_state) {
     );
   }
 
+  // The section that allows the user to map their drupal taxes to QuickBooks.
+  $qb_tax_field = field_info_field('commerce_qbo_ui_tax_type_s');
+  $can_use = !empty($qb_tax_field['settings']['allowed_values']);
+  $tax_cfg_msg = $can_use
+    ? t("Set up the connection between your Drupal tax rates and your QuickBooks tax rates. <br/>Select a Drupal tax from the dropdown(s) to map it to the Quickbooks tax labelled above.")
+    : t("You must load your QuickBooks tax types using the above button before you can map your Drupal tax rates to them.");
+
+  $form['commerce_qbo_ui_tax_config'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Drupal tax to QuickBooks tax config'),
+    '#description' => $tax_cfg_msg,
+  );
+  if ($can_use) {
+    // Grab the list of Drupal tax rates, and convert them to an options array.
+    $drupal_tax_rates = commerce_tax_rates();
+    $drupal_tax_rate_options = array();
+    foreach($drupal_tax_rates as $name => $tax) {
+      $drupal_tax_rate_options[$name] = $tax['display_title'];
+    }
+
+    // Convenience variable for less code.
+    $tax_cfg_index = 'commerce_qbo_ui_tax_config';
+
+    $defaults = variable_get($tax_cfg_index, array());
+
+    foreach ($qb_tax_field['settings']['allowed_values'] as $tax_code => $name) {
+      $form[$tax_cfg_index]['tax_code_' . $tax_code] = array(
+        '#type' => 'select',
+        '#title' => $name,
+        '#options' => $drupal_tax_rate_options,
+        '#default_value' => empty($defaults[$tax_code]) ?: $defaults[$tax_code],
+        '#prefix' => '<span style="display: inline-block; padding: 0 10px;">',
+        '#suffix' => '</span>',
+      );
+    }
+  }
+
   // For capturing fail/success messages from QuickBooks Online
   $form['commerce_qbo_ui_logging'] = array(
     '#description' => t('Enable/disable message logging from QuickBooks API calls.'),
@@ -98,7 +135,58 @@ function commerce_qbo_ui_config_form($form, &$form_state) {
     '#required' => TRUE,
   );
 
-  return system_settings_form($form);
+  $form['actions']['#type'] = 'actions';
+  $form['actions']['submit'] = array('#type' => 'submit', '#value' => t('Save configuration'));
+
+  if (!empty($_POST) && form_get_errors()) {
+    drupal_set_message(t('The settings have not been saved because of the errors.'), 'error');
+  }
+  $form['#submit'][] = 'commerce_qbo_ui_config_form_submit';
+  // By default, render the form using theme_system_settings_form().
+  if (!isset($form['#theme'])) {
+    $form['#theme'] = 'system_settings_form';
+  }
+
+  return $form;
+}
+
+/**
+ * Form submission handler for commerce_qbo_ui_config_form().
+ *
+ * Custom submit handler created to help store QB tax mappings.
+ *
+ * @param $form
+ * @param $form_state
+ */
+function commerce_qbo_ui_config_form_submit($form, &$form_state) {
+  // Exclude unnecessary elements.
+  form_state_values_clean($form_state);
+
+  // Group all tax mappings together
+  $tax_codes = array();
+
+  foreach ($form_state['values'] as $key => $value) {
+    if (strpos($key, 'tax_code_') === 0) {
+      $code = substr($key, 9);
+
+      // We set both values here so we can set the default/saved values for the
+      // form based on QB tax code, and query the QB code later with the Drupal
+      // tax attached to the order.
+      $tax_codes[$code] = $value;
+      $tax_codes[$value] = $code;
+      continue;
+    }
+    else if (is_array($value) && isset($form_state['values']['array_filter'])) {
+      $value = array_keys(array_filter($value));
+    }
+    variable_set($key, $value);
+  }
+
+  if (!empty($tax_codes)) {
+    variable_set('commerce_qbo_ui_tax_config', $tax_codes);
+  }
+
+  drupal_set_message(t('The configuration options have been saved.'));
 }
 
 /**

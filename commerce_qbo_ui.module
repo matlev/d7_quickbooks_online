@@ -979,13 +979,7 @@ function commerce_qbo_ui_log_message($message = '', Exception $e = NULL) {
   }
   elseif($e === NULL && !is_string($message)) {
     // Convert $message to a readable format and save
-    if (!is_object($message)) {
-      $message = print_r($message, TRUE) . '<br/>';
-    }
-    else {
-      // We only allow values that can be converted into strings.
-      return;
-    }
+    $message = print_r($message, TRUE) . '<br/>';
   }
   elseif ($e === NULL && empty($message)) {
     // No message to log, do nothing

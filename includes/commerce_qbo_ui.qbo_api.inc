@@ -263,6 +263,16 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
     $txn->SalesTermRef = $sales_term;
   }
 
+  $ewo = entity_metadata_wrapper('commerce_order', $order);
+  $bill_email = check_plain($ewo->mail->value());
+  if (!empty($bill_email)) {
+    $txn->BillEmail = new \Intuit\Ipp\Data\IPPEmailAddress();
+    $txn->BillEmail->Address = check_plain($ewo->mail->value());
+  }
+
+  // Attach any tax data to the tranasction.
+  commerce_qbo_ui_add_tax_details($txn, $ewo);
+
   // allow modules to alter the QuickBooks object before we pass the transaction
   drupal_alter('commerce_qbo_ui_IPPInvoice', $txn, $order);
 
@@ -552,6 +562,34 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
 }
 
 /**
+ * Appends Tax details to a tx if QB tax codes have been mapped
+ *
+ * @param $txn
+ *   The current QuickBooks transaction
+ * @param $order
+ *   Entity wrapped order object
+ */
+function commerce_qbo_ui_add_tax_details(&$txn, $order) {
+  $tax_config = variable_get('commerce_qbo_ui_tax_config', array());
+
+  $price_data = $order->commerce_order_total->data->value();
+  foreach ($price_data['components'] as $part) {
+    if (strpos($part['name'], 'tax|') === 0) {
+      $drupal_tax = (substr($part['name'], 4));
+      $amount = number_format($part['price']['amount']/100, 2, '.', '');
+
+      if (!empty($tax_config[$drupal_tax])) {
+        $tax_code = $tax_config[$drupal_tax];
+
+        $txn->TxnTaxDetail = new \Intuit\Ipp\Data\IPPTxnTaxDetail();
+        $txn->TxnTaxDetail->TxnTaxCodeRef = $tax_code;
+        $txn->TxnTaxDetail->TotalTax = $amount;
+      }
+    }
+  }
+}
+
+/**
  * Queries for the payment method used for the given order
  *
  * @param $order
@@ -707,7 +745,7 @@ function commerce_qbo_ui_get_customer_id($order) {
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   
   $customer_name = check_plain($ewo->commerce_customer_billing->commerce_customer_address->name_line->value());
-  $email = check_plain($ewo->commerce_customer_billing->user->mail->value());
+  $email = check_plain($ewo->mail->value());
 
   $query = "SELECT Id FROM Customer WHERE PrimaryEmailAddr = '$email'";
   $customers = qbo_api_query($query, TRUE);
@@ -761,7 +799,7 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $new_customer = new \Intuit\Ipp\Data\IPPCustomer();
   $new_customer->DisplayName = $customer_name;
   $new_customer->PrimaryEmailAddr = new \Intuit\Ipp\Data\IPPEmailAddress();
-  $new_customer->PrimaryEmailAddr->Address = check_plain($ewo->commerce_customer_billing->user->mail->value());
+  $new_customer->PrimaryEmailAddr->Address = check_plain($ewo->mail->value());
 
   // Address (Minimal, Country, State/Province and Postal Code)
   $new_customer->BillAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
@@ -781,8 +819,12 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $new_customer->ShipAddr->City = $ewo->commerce_customer_shipping->commerce_customer_address->locality->value();
   $new_customer->ShipAddr->PostalCode = $ewo->commerce_customer_shipping->commerce_customer_address->postal_code->value();
 
+  // Allow external modules to alter the object before the customer is created.
+  drupal_alter('commerce_qbo_ui_create_customer', $new_customer, $customer_name, $ewo);
+
   try {
     $customer = $client->Add($new_customer);
+
     return $customer;
   }
   catch (Exception $e) {
