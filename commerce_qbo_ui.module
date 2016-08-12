@@ -4,12 +4,26 @@
  | Hooks                                       |
  + ------------------------------------------- */
 
-// @todo: This can be removed if it's not going to be used.
 /**
  * Implements hook_help().
  */
-function commerce_qbo_ui_help() {
+function commerce_qbo_ui_help($path, $arg) {
+  switch($path) {
+    case 'admin/help/commerce_qbo_ui':
+      $filepath = dirname(__FILE) . '/README.txt';
 
+      if (file_exists($filepath)) {
+        $readme = file_get_contents($filepath);
+      }
+
+      if (!isset($readme)) {
+        return NULL;
+      }
+
+      $output = '<pre>' . $readme . '</pre>';
+
+      return $output;
+  }
 }
 
 /**
