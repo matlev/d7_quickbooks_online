@@ -4,7 +4,7 @@
  * @file The controller class for a QuickBooks Report entity
  */
 
-class QBOReportEntityController extends EntityAPIController {
+class CommerceQboUiReportEntityController extends EntityAPIController {
 
   /**
    * Create a default qb_report.
@@ -100,12 +100,8 @@ class QBOReportEntityController extends EntityAPIController {
    *   The renderable array.
    */
   public function buildContent($report, $view_mode = 'full', $langcode = NULL, $content = array()) {
-
-    // @TODO: Configure build content here if needed
-
     $build = parent::buildContent($report, $view_mode, $langcode, $content);
 
     return $build;
-
   }
 }

@@ -35,7 +35,7 @@ function commerce_qbo_ui_qb_report_form($form, &$form_state, $report) {
 
   field_attach_form('qb_report', $report, $form, $form_state, LANGUAGE_NONE);
 
-  // Check to see if this form has an interchangeable field(s)
+  // Check to see if this form has an interchangeable field(s).
   $pre = "commerce_qbo_ui";
   if (isset($form[$pre . '_deposit_acc_s'])) {
     if (count($form[$pre . '_deposit_acc_s'][LANGUAGE_NONE]['#options']) > 1) {
@@ -138,7 +138,7 @@ function commerce_qbo_ui_qb_report_form_validate($form, &$form_state) {
 function commerce_qbo_ui_qb_report_form_submit($form, &$form_state) {
   $report = $form_state['qb_report'];
 
-  // Set default entity values
+  // Set default entity values.
   $report->name = $form_state['values']['name'];
   $report->status = $form_state['values']['status'];
 
@@ -148,7 +148,7 @@ function commerce_qbo_ui_qb_report_form_submit($form, &$form_state) {
   // Save the product.
   commerce_qbo_ui_qb_report_save($report);
 
-  // Redirect back to reports listing page
+  // Redirect back to reports listing page.
   $form_state['redirect'] = 'admin/commerce/commerce_qbo_ui/qb_reports';
   drupal_set_message(t('QuickBooks Report saved.'));
 }

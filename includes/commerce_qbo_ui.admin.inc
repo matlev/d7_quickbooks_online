@@ -53,7 +53,7 @@ function commerce_qbo_ui_config_form($form, &$form_state) {
     $form['field_actions']['commerce_qbo_ui_populate_field_data'] = array(
       '#type' => 'submit',
       '#title' => t('Pull data from QuickBooks'),
-      '#value' => 'Populate',
+      '#value' => t('Populate'),
       '#limit_validation_errors' => array(),
       '#submit' => array('commerce_qbo_ui_populate_field_data'),
     );
@@ -96,7 +96,7 @@ function commerce_qbo_ui_config_form($form, &$form_state) {
     }
   }
 
-  // For capturing fail/success messages from QuickBooks Online
+  // For capturing fail/success messages from QuickBooks Online.
   $form['commerce_qbo_ui_logging'] = array(
     '#description' => t('Enable/disable message logging from QuickBooks API calls.'),
     '#type' => 'radios',
@@ -109,7 +109,7 @@ function commerce_qbo_ui_config_form($form, &$form_state) {
     '#required' => TRUE,
   );
 
-  // A safety net for transferring reports to staging
+  // A safety net for transferring reports to staging.
   $form['commerce_qbo_ui_stage_premature_reports'] = array(
     '#description' => t('If enabled, any reports that are sent before the module is fully configured will be caught and passed into staging instead.<br><em>You will still be unable to send these reports until configuration is complete.</em>'),
     '#type' => 'radios',
@@ -122,7 +122,7 @@ function commerce_qbo_ui_config_form($form, &$form_state) {
     '#required' => TRUE,
   );
 
-  // Warn privileged users when reports are pending action
+  // Warn privileged users when reports are pending action.
   $form['commerce_qbo_ui_alert_pending_reports'] = array(
     '#description' => t('Optionally display a persistent notification when reports are in the staging area.'),
     '#type' => 'radios',
@@ -162,7 +162,7 @@ function commerce_qbo_ui_config_form_submit($form, &$form_state) {
   // Exclude unnecessary elements.
   form_state_values_clean($form_state);
 
-  // Group all tax mappings together
+  // Group all tax mappings together.
   $tax_codes = array();
 
   foreach ($form_state['values'] as $key => $value) {
@@ -199,14 +199,14 @@ function commerce_qbo_ui_config_form_submit($form, &$form_state) {
  */
 function commerce_qbo_ui_populate_field_data($form, &$form_state) {
   // We should only be able to access this function if the api is fully
-  // configured, but double check anyways
+  // configured, but double check anyways.
   if (qbo_api_client()) {
-    // Grab QuickBooks values
+    // Grab QuickBooks values.
     $accounts = qbo_api_query_as_options('SELECT Id, Name FROM Account', '', TRUE);
     $tax_codes = qbo_api_query_as_options('SELECT Id, Name FROM TaxCode', '', TRUE);
     $terms = qbo_api_query_as_options("SELECT Id, Name FROM Term", '- Select One -', TRUE);
 
-    // Edit field values
+    // Edit field values.
     $pre = "commerce_qbo_ui";
     $field = array();
 
@@ -246,14 +246,14 @@ function commerce_qbo_ui_populate_field_data($form, &$form_state) {
 function commerce_qbo_ui_pending_reports($form, $form_state) {
   commerce_qbo_ui_ready_check();
 
-  // Remove and deleted rows
+  // Remove and deleted rows.
   $trigger = isset($form_state['triggering_element']) ? $form_state['triggering_element'] : NULL;
 
   if ($trigger != NULL) {
     if ($trigger['#value'] == 'Remove') {
       $srid = str_replace('commerce_qbo_ui_remove_', '',$trigger['#name']);
 
-      // Convert the ID to an int
+      // Convert the ID to an int.
       $srid *= 1;
 
       _commerce_qbo_ui_clear_sr_by_id($srid);
@@ -261,7 +261,7 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
     elseif ($trigger['#value'] == 'Submit') {
       $srid = str_replace('commerce_qbo_ui_submit_', '', $trigger['#name']);
 
-      // Convert the ID to an int
+      // Convert the ID to an int.
       $srid *= 1;
 
       $result = db_select('commerce_qbo_ui_staged_report', 'sr')
@@ -275,7 +275,7 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
       $notice = '';
 
       if (commerce_qbo_ui_send_report($order_id, $report_type)) {
-        // We can remove the report from pending if the transaction is successful
+        // We can remove the report from pending if the transaction is successful.
         _commerce_qbo_ui_clear_sr_by_id($srid);
 
         if (user_access('view commerce qbo ui messages')) {
@@ -326,7 +326,7 @@ function commerce_qbo_ui_pending_reports($form, $form_state) {
  * delete or add new Reports
  */
 function commerce_qbo_ui_reports_overview() {
-  // Get all created qb_reports
+  // Get all created qb_reports.
   $query = db_select('commerce_qbo_ui_report', 'r');
   $query->leftJoin('commerce_qbo_ui_report_type', 'rt', 'r.report_type = rt.type');
   $results = $query
@@ -390,12 +390,12 @@ function commerce_qbo_ui_display_logs() {
   foreach ($result as $qbo_log) {
     $rows[] = array('data' =>
       array(
-        // Cells
+        // Cells.
         array('class' => 'icon'),
         format_date($qbo_log->timestamp, 'short'),
         $qbo_log->message,
       ),
-      // Attributes for tr
+      // Attributes for tr.
       'class' => array(drupal_html_class('qbo-log-message')),
     );
   }

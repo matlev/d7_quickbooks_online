@@ -5,7 +5,7 @@
  */
 
 /**
- * Implements hook_install()
+ * Implements hook_install().
  */
 function commerce_qbo_ui_install() {
   // Settings config
@@ -27,11 +27,11 @@ function commerce_qbo_ui_install() {
  * Creates the bundles and their fields for the QuickBooks Reports entity
  */
 function commerce_qbo_ui_enable() {
-  // Check for the existence of bundles before creating them
+  // Check for the existence of bundles before creating them.
   $bundles = field_info_bundles('qb_report');
 
   if (empty($bundles)) {
-    // Create the QuickBooks Report types
+    // Create the QuickBooks Report types.
     $qb_report_types = array();
 
     $t = get_t();
@@ -46,7 +46,7 @@ function commerce_qbo_ui_enable() {
     commerce_qbo_ui_qb_report_type_save($qb_report_types);
   }
 
-  // Create and configure the fields for each bundle
+  // Create and configure the fields for each bundle.
   commerce_qbo_ui_configure_entity_fields();
 }
 
@@ -56,7 +56,7 @@ function commerce_qbo_ui_enable() {
  * Clears the static cache
  */
 function commerce_qbo_ui_disable() {
-  // A list of static variables this module uses
+  // A list of static variables this module uses.
   $static_vars = array(
     '_commerce_qbo_ui_configure_bundle_fields',
     '_commerce_qbo_ui_configure_line_item_field',
@@ -103,13 +103,13 @@ function commerce_qbo_ui_configure_entity_fields() {
  * @param $bundle
  */
 function _commerce_qbo_ui_configure_line_item_field($bundle) {
-  // Payment transactions don't use this particular Line
+  // Payment transactions don't use this particular Line.
   if ($bundle == 'payment') {
     return;
   }
 
   $t = get_t();
-  $module = "c_qbo_ui"; // Shortened to comply with 32 char max. for field names
+  $module = "c_qbo_ui"; // Shortened to comply with 32 char max. for field names.
 
   // Get static caches if they exist
   $line_item_types = &drupal_static(__FUNCTION__ . '_line_item_types');
@@ -129,10 +129,10 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
     $line_item_types = commerce_line_item_type_get_name();
   }
 
-  // Builds the fields if the line items have changed or this is our first run
+  // Builds the fields if the line items have changed or this is our first run.
   if ($build_fields) {
     $fields_array = array(
-      // Field Collection field
+      // Field Collection field.
       array(
         'field' => array(
           'field_name' => $module . '_line_item_collection',
@@ -155,7 +155,7 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
         ),
       ),
 
-      // Field Collection items
+      // Field Collection items.
       array(
         'field' => array(
           'field_name' => $module . '_line_item_type',
@@ -275,12 +275,12 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
     );
   }
 
-  // Set the collection bundle to the current qb_report bundle
+  // Set the collection bundle to the current qb_report bundle.
   $fields_array[0]['instance']['bundle'] = $bundle;
 
-  // Loop through fields array and create fields and instances
+  // Loop through fields array and create fields and instances.
   foreach ($fields_array as $field) {
-    // Check if field already exists
+    // Check if field already exists.
     if (!field_info_field($field['field']['field_name'])) {
       field_create_field($field['field']);
     }
@@ -308,7 +308,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
   if (!isset($bundle_fields)) {
     $deposit_field = _commerce_qbo_ui_add_deposit_account_field($module);
 
-    // We need to set up the bundle fields for the first time
+    // We need to set up the bundle fields for the first time.
     $bundle_fields = array(
       'all' => array(
         array(
@@ -525,7 +525,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
         $deposit_field[0],
         $deposit_field[1],
       ),
-      'credit_memo' => array(), // No unique fields as of 02/22/16
+      'credit_memo' => array(), // No unique fields as of 02/22/16.
       'refund' => array(
         _commerce_qbo_ui_add_transaction_date_field($module),
         array(
@@ -581,11 +581,11 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
     );
   }
 
-  // Collect only the fields for this bundle
+  // Collect only the fields for this bundle.
   $fields = isset($bundle_fields[$bundle]) ? $bundle_fields[$bundle] : array();
 
   foreach ($fields as $field) {
-    // Set the bundle since the cached fields array can't set it for 'all' fields
+    // Set the bundle since the cached fields array can't set it for 'all' fields.
     $field['instance']['bundle'] = $bundle;
 
     if (!field_info_field($field['field']['field_name'])) {
@@ -599,7 +599,7 @@ function _commerce_qbo_ui_configure_bundle_fields($bundle) {
 
   if ($bundle != "payment") {
     foreach ($bundle_fields['all'] as $field) {
-      // Set the bundle since the cached fields array can't set it for 'all' fields
+      // Set the bundle since the cached fields array can't set it for 'all' fields.
       $field['instance']['bundle'] = $bundle;
 
       if (!field_info_field($field['field']['field_name'])) {
@@ -942,23 +942,24 @@ function commerce_qbo_ui_schema() {
  * Implements hook_uninstall()
  */
 function commerce_qbo_ui_uninstall() {
-  // Unset any variables
+  // Unset any variables.
   $vars = array(
     'commerce_qbo_ui_alert_pending_reports',
     'commerce_qbo_ui_logging',
     'commerce_qbo_ui_stage_premature_reports',
     'commerce_qbo_ui_run',
+    'commerce_qbo_ui_tax_config',
   );
 
   foreach ($vars as $var) {
     variable_del($var);
   }
 
-  // Delete fields defined by this module
+  // Delete fields defined by this module.
   $bundles = _commerce_qbo_ui_bundles();
   $fields = _commerce_qbo_ui_fields();
 
-  // We delete field collections separately due to their more unique nature
+  // We delete field collections separately due to their more unique nature.
   foreach ($fields['collection_field'] as $field) {
     $name = 'c_qbo_ui' . $field;
     $bundle = 'c_qbo_ui_line_item_collection';
@@ -971,11 +972,11 @@ function commerce_qbo_ui_uninstall() {
     field_delete_field($name);
   }
 
-  // Delete regular fields belonging to qb_report bundles
+  // Delete regular fields belonging to qb_report bundles.
   foreach ($fields['field'] as $field) {
     $name = "commerce_qbo_ui" . $field;
 
-    // Clear all instances belonging to the bundles
+    // Clear all instances belonging to the bundles.
     foreach ($bundles as $bundle) {
       $instance = field_info_instance('qb_report', $name, $bundle);
       if ($instance) {
@@ -986,12 +987,12 @@ function commerce_qbo_ui_uninstall() {
     field_delete_field($name);
   }
 
-  // Delete the collection entities themselves
+  // Delete the collection entities themselves.
   foreach ($fields['collection'] as $collection) {
     $name = 'c_qbo_ui' . $collection;
     $type = 'qb_report';
 
-    // Clear all instances belonging to the bundles
+    // Clear all instances belonging to the bundles.
     foreach ($bundles as $bundle) {
       $instance = field_info_instance($type, $name, $bundle);
       if ($instance) {

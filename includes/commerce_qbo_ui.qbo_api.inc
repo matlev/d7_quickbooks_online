@@ -36,7 +36,7 @@ define('TRANSACTION_FAILURE', 0);
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_start_txn($order_id, $qb_report) {
-  // Retrieve the proper function to use for building the transaction
+  // Retrieve the proper function to use for building the transaction.
   $txn = commerce_qbo_ui_route_txn($qb_report);
   $func = "commerce_qbo_ui_$txn";
 
@@ -62,17 +62,17 @@ function commerce_qbo_ui_start_txn($order_id, $qb_report) {
   }
   catch (Exception $e) {
     // We watchdog the error in this case because this is considered to be a
-    // critical failure and the site admin shouldn't miss it if it happens
+    // critical failure and the site admin shouldn't miss it if it happens.
     $message = t('Couldn\'t connect to QuickBooks.  Verify that your API tokens are correct, your connection is secure and all services are running. ');
     watchdog('commerce_qbo_ui', $message . $e->getMessage(), array(), WATCHDOG_CRITICAL);
     commerce_qbo_ui_log_message($message, $e);
     return TRANSACTION_FAILURE;
   }
 
-  // Retrieve the order
+  // Retrieve the order.
   $order = commerce_order_load($order_id);
 
-  // Call the defined transaction method
+  // Call the defined transaction method.
   libraries_load('qbo');
   return $func($order, $qb_report, $txn, $client);
 }
@@ -89,7 +89,7 @@ function commerce_qbo_ui_start_txn($order_id, $qb_report) {
 function commerce_qbo_ui_route_txn($qb_report) {
   $name = commerce_qbo_ui_get_qb_report_type($qb_report->rtid);
 
-  // Make sure all parts of the name are capitalized, then strip spaces
+  // Make sure all parts of the name are capitalized, then strip spaces.
   $name = str_replace(' ', '', ucwords($name));
 
   return 'IPP' . $name;
@@ -115,39 +115,39 @@ function commerce_qbo_ui_route_txn($qb_report) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client) {
-// Initialize the transaction object
+// Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPCreditMemo();
 
-  // Attach the customer to the transaction
+  // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
-  // Initialize Line array
+  // Initialize Line array.
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
   if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in the non-mandatory values now
+  // Pass in the non-mandatory values now.
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
-  // allow modules to alter the QuickBooks object before we pass the transaction
+  // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPCreditMemo', $txn, $order);
 
-  // Finally, attempt to pass the transaction to QuickBooks
+  // Finally, attempt to pass the transaction to QuickBooks.
   try {
     $txn = $client->Add($txn);
 
     return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
   }
   catch (Exception $e) {
-    // The operation failed..
+    // The operation failed...
     commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
     return TRANSACTION_FAILURE;
   }
@@ -166,29 +166,29 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
-// Initialize the transaction object
+// Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPEstimate();
 
-  // Attach the customer to the transaction
+  // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
-  // Initialize Line array
+  // Initialize Line array.
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
   if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in non-mandatory values (generic)
+  // Pass in non-mandatory values (generic).
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
-  // Pass in non-mandatory value (specific)
+  // Pass in non-mandatory value (specific).
   $shipping_date = $ewr->commerce_qbo_ui_shipping_date->value();
   if (!empty($shipping_date)) {
     $txn->ShipDate = format_date(REQUEST_TIME + $shipping_date, 'custom', 'Y-m-d');
@@ -198,17 +198,17 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
     $txn->ExpirationDate = format_date(REQUEST_TIME + $expiration_date, 'custom', 'Y-m-d');
   }
 
-  // allow modules to alter the QuickBooks object before we pass the transaction
+  // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPEstimate', $txn, $order);
 
-  // Finally, attempt to pass the transaction to QuickBooks
+  // Finally, attempt to pass the transaction to QuickBooks.
   try {
     $txn = $client->Add($txn);
 
     return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
   }
   catch (Exception $e) {
-    // The operation failed..
+    // The operation failed...
     commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
     return TRANSACTION_FAILURE;
   }
@@ -227,29 +227,29 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
-  // Initialize the transaction object
+  // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPInvoice();
 
-  // Attach the customer to the transaction
+  // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
-  // Initialize Line array
+  // Initialize Line array.
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
   if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in non-mandatory values (generic)
+  // Pass in non-mandatory values (generic).
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
-  // Pass in non-mandatory value (specific)
+  // Pass in non-mandatory value (specific).
   $shipping_date = $ewr->commerce_qbo_ui_shipping_date->value();
   if (!empty($shipping_date)) {
     $txn->ShipDate = format_date(REQUEST_TIME + $shipping_date, 'custom', 'Y-m-d');
@@ -273,17 +273,17 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
   // Attach any tax data to the tranasction.
   commerce_qbo_ui_add_tax_details($txn, $ewo);
 
-  // allow modules to alter the QuickBooks object before we pass the transaction
+  // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPInvoice', $txn, $order);
 
-  // Finally, attempt to pass the transaction to QuickBooks
+  // Finally, attempt to pass the transaction to QuickBooks.
   try {
     $txn = $client->Add($txn);
 
     return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
   }
   catch (Exception $e) {
-    // The operation failed..
+    // The operation failed...
     commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
     return TRANSACTION_FAILURE;
   }
@@ -305,23 +305,23 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
 
-  // Initialize the transaction object
+  // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPPayment();
 
-  // Attach the customer to the transaction
+  // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
-  // Amount
+  // Amount.
   $txn->TotalAmt = $ewo->commerce_order_total->amount_decimal->value();
 
-  // Payment method
+  // Payment method.
   $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
   $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
 
-  // Deposit account
+  // Deposit account.
   if ($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
     $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
   }
@@ -330,20 +330,20 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
-  // Memo
+  // Memo.
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
 
-  // allow modules to alter the QuickBooks object before we pass the transaction
+  // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPPayment', $txn, $order);
 
-  // Finally, attempt to pass the transaction to QuickBooks
+  // Finally, attempt to pass the transaction to QuickBooks.
   try {
     $txn = $client->Add($txn);
 
     return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
   }
   catch (Exception $e) {
-    // The operation failed..
+    // The operation failed...
     commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
     return TRANSACTION_FAILURE;
   }
@@ -362,23 +362,23 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
-  // Initialize the transaction object
+  // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPRefundReceipt();
 
-  // Attach the customer to the transaction
+  // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if ($txn->CustomerRef == FALSE) {
     return TRANSACTION_FAILURE;
   }
 
-  // Initialize Line array
+  // Initialize Line array.
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
   if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
-  // Set Refund Account
+  // Set Refund Account.
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
   if ($ewr->commerce_qbo_ui_refund_account->value() == NULL) {
     $deposit_account_ref = $ewr->commerce_qbo_ui_refund_acc_s->value();
@@ -388,22 +388,22 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
-  // Pass in non-mandatory values (generic)
+  // Pass in non-mandatory values (generic).
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
-  // allow modules to alter the QuickBooks object before we pass the transaction
+  // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPRefund', $txn, $order);
 
-  // Finally, attempt to pass the transaction to QuickBooks
+  // Finally, attempt to pass the transaction to QuickBooks.
   try {
     $txn = $client->Add($txn);
 
     return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
   }
   catch (Exception $e) {
-    // The operation failed..
+    // The operation failed...
     commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
     return TRANSACTION_FAILURE;
   }
@@ -422,30 +422,30 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
  *   TRANSACTION_FAILURE otherwise
  */
 function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$client) {
-// Initialize the transaction object
+// Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPSalesReceipt();
 
-  // Attach the customer to the transaction
+  // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
   if ($txn->CustomerRef == FALSE) {
-    // Customer Ref isn't required for a Sales Receipt
+    // Customer Ref isn't required for a Sales Receipt.
     $txn->CustomerRef = '';
   }
 
-  // Initialize Line array
+  // Initialize Line array.
   $txn->Line = array();
   $success = commerce_qbo_ui_build_txn_line($order, $qb_report, $txn);
   if (!$success) {
     return TRANSACTION_FAILURE;
   }
 
-  // Pass in non-mandatory values (generic)
+  // Pass in non-mandatory values (generic).
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
   $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
   $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
   $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
 
-  // Pass in non-mandatory value (specific)
+  // Pass in non-mandatory value (specific).
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
   $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
@@ -457,17 +457,17 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
-  // allow modules to alter the QuickBooks object before we pass the transaction
+  // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPSalesReceipt', $txn, $order);
 
-  // Finally, attempt to pass the transaction to QuickBooks
+  // Finally, attempt to pass the transaction to QuickBooks.
   try {
     $txn = $client->Add($txn);
 
     return !empty($txn) ? TRANSACTION_SUCCESS : TRANSACTION_FAILURE;
   }
   catch (Exception $e) {
-    // The operation failed..
+    // The operation failed...
     commerce_qbo_ui_log_message("Failed to send the $txn_class transaction to QuickBooks.", $e);
     return TRANSACTION_FAILURE;
   }
@@ -488,37 +488,37 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
  *   Transaction object
  */
 function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
-  // Wrap the order and report
+  // Wrap the order and report.
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
 
   // Loop through the commerce line items, and build the Line according to the
-  // qb_report configuration
+  // qb_report configuration.
   foreach ($ewo->commerce_line_items->getIterator() as $line_item_wrapper) {
-    // Get the regular commerce_line_item object
+    // Get the regular commerce_line_item object.
     $line_item = commerce_line_item_load($line_item_wrapper->line_item_id->value());
     $line_item_type = $line_item_wrapper->type->value();
 
     foreach ($ewr->c_qbo_ui_line_item_collection->getIterator() as $qb_collection) {
       if ($qb_collection->c_qbo_ui_line_item_type->value() == $line_item_type) {
-        // Replace tokens in product/service and description fields
+        // Replace tokens in product/service and description fields.
         $data = array('commerce-order' => $order, 'commerce-line-item' => $line_item);
         $parsed_text = _commerce_qbo_ui_replace_tokens($qb_collection, $data);
 
-        // Build the line
+        // Build the line.
         $row = new \Intuit\Ipp\Data\IPPLine();
         $row->DetailType = 'SalesItemLineDetail';
         $row->SalesItemLineDetail = new \Intuit\Ipp\Data\IPPSalesItemLineDetail();
 
-        // Item Ref
+        // Item Ref.
         $item_ref = _commerce_qbo_ui_get_item_ref($parsed_text['item_name'], $parsed_text['description'], $line_item_wrapper, $qb_collection);
         if ($item_ref === FALSE) {
-          // Item ref is a required field, we can't continue without it
+          // Item ref is a required field, we can't continue without it.
           return FALSE;
         }
         $row->SalesItemLineDetail->ItemRef = $item_ref;
 
-        // Quantity
+        // Quantity.
         if ($qb_collection->c_qbo_ui_line_quantity->value() != NULL) {
           $row->SalesItemLineDetail->Qty = $qb_collection->c_qbo_ui_line_quantity->value();
         }
@@ -529,7 +529,7 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
           $row->SalesItemLineDetail->Qty = 0;
         }
 
-        // Unit Price
+        // Unit Price.
         if ($qb_collection->c_qbo_ui_line_rate->value() != NULL) {
           $row->SalesItemLineDetail->UnitPrice = $qb_collection->c_qbo_ui_line_rate->value();
         }
@@ -540,13 +540,14 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
           $row->SalesItemLineDetail->UnitPrice = 0;
         }
 
-        // Amount
+        // Amount.
         $row->Amount = $row->SalesItemLineDetail->UnitPrice * $row->SalesItemLineDetail->Qty;
 
-        // Tax Code Ref
+        // Tax Code Ref.
         // @TODO: Distinguish between Global and US account
+        // @TODO: Add the option for per item taxation instead of global tax
 
-        // Description
+        // Description.
         $line_description = $qb_collection->c_qbo_ui_line_description->value();
         if (!empty($line_description)) {
           $row->Description = $parsed_text['description'];
@@ -557,7 +558,7 @@ function commerce_qbo_ui_build_txn_line($order, $qb_report, &$txn) {
     }
   }
 
-  // Success flag
+  // Success flag.
   return TRUE;
 }
 
@@ -632,7 +633,7 @@ function _commerce_qbo_ui_get_payment_method($order) {
 function  _commerce_qbo_ui_replace_tokens($qb_collection, $data = array()) {
   $return = array();
 
-  // Remove tokens from final text if no replacements are found
+  // Remove tokens from final text if no replacements are found.
   $options = array('clear' => TRUE);
 
   $text = $qb_collection->c_qbo_ui_product_service->value();
@@ -672,7 +673,7 @@ function _commerce_qbo_ui_get_item_ref($item_name, $description, $line_item, $qb
     return $id;
   }
   else {
-    // No item exists by the given name, try to create one and pass it back
+    // No item exists by the given name, try to create one and pass it back.
     $item = _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_collection);
 
     return $item ? $item->Id : FALSE;
@@ -701,10 +702,10 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
 
   $new_item = new \Intuit\Ipp\Data\IPPItem();
   $new_item->Name = check_plain($item_name);
-  $new_item->Type = "Service";
+  $new_item->Type = 'Service';
   $new_item->Description = $description;
 
-  // Calculate Unit price for this item
+  // Calculate Unit price for this item.
   $line_rate = $qb_collection->c_qbo_ui_line_rate->value();
   if (!empty($line_rate)) {
     $new_item->UnitPrice = $line_rate;
@@ -713,11 +714,11 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
     $new_item->UnitPrice = $line_item->commerce_unit_price->amount_decimal->value();
   }
 
-  // Get the default account to deposit funds from the sale of this Item to
+  // Get the default account to deposit funds from the sale of this Item to.
   $account_ref = qbo_api_query("SELECT Id FROM Account WHERE Name = 'Sales of Product Income'");
   $new_item->IncomeAccountRef = $account_ref[0]->Id;
 
-  // Get the default payable account for the vendor that supplies this Item
+  // Get the default payable account for the vendor that supplies this Item.
   $account_ref = qbo_api_query("SELECT Id FROM Account WHERE Name = 'Cost of Goods Sold'");
   $new_item->ExpenseAccountRef = $account_ref[0]->Id;
 
@@ -726,7 +727,7 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
     return $item;
   }
   catch (Exception $e) {
-    commerce_qbo_ui_log_message("Unable to create new item [" . $item_name . "]. ", $e);
+    commerce_qbo_ui_log_message("Unable to create new item [$item_name]. ", $e);
     return FALSE;
   }
 }
@@ -741,7 +742,7 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
  *   FALSE if no Customer existed and we couldn't create one, an ID otherwise
  */
 function commerce_qbo_ui_get_customer_id($order) {
-  // Wrap the order and report
+  // Wrap the order and report.
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   
   $customer_name = check_plain($ewo->commerce_customer_billing->commerce_customer_address->name_line->value());
@@ -759,7 +760,7 @@ function commerce_qbo_ui_get_customer_id($order) {
   }
   else {
     // Try a new query against email instead.  Unfortunately QuickBooks doesn't
-    // play well with OR statements in the SQL, so separate queries are necessary
+    // play well with OR statements in the SQL, so separate queries are necessary.
     $query = "SELECT Id FROM Customer WHERE DisplayName = '$customer_name'";
     $customers = qbo_api_query($query, TRUE);
 
@@ -771,7 +772,7 @@ function commerce_qbo_ui_get_customer_id($order) {
       return $id;
     }
     else {
-      // No item exists by the given name, try to create one and pass it back
+      // No item exists by the given name, try to create one and pass it back.
       $customer = _commerce_qbo_ui_create_customer($customer_name, $ewo);
 
       return $customer ? $customer->Id : FALSE;
@@ -795,13 +796,13 @@ function commerce_qbo_ui_get_customer_id($order) {
 function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $client = qbo_api_client();
 
-  // Main identifiers
+  // Main identifiers.
   $new_customer = new \Intuit\Ipp\Data\IPPCustomer();
   $new_customer->DisplayName = $customer_name;
   $new_customer->PrimaryEmailAddr = new \Intuit\Ipp\Data\IPPEmailAddress();
   $new_customer->PrimaryEmailAddr->Address = check_plain($ewo->mail->value());
 
-  // Address (Minimal, Country, State/Province and Postal Code)
+  // Address (Minimal, Country, State/Province and Postal Code).
   $new_customer->BillAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
   $new_customer->BillAddr->Line1 = $ewo->commerce_customer_billing->commerce_customer_address->thoroughfare->value();
   $new_customer->BillAddr->Line2 = $ewo->commerce_customer_billing->commerce_customer_address->premise->value();
@@ -810,7 +811,7 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $new_customer->BillAddr->City = $ewo->commerce_customer_billing->commerce_customer_address->locality->value();
   $new_customer->BillAddr->PostalCode = $ewo->commerce_customer_billing->commerce_customer_address->postal_code->value();
 
-  // Shipping Address
+  // Shipping Address.
   $new_customer->ShipAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
   $new_customer->ShipAddr->Line1 = $ewo->commerce_customer_shipping->commerce_customer_address->thoroughfare->value();
   $new_customer->ShipAddr->Line2 = $ewo->commerce_customer_shipping->commerce_customer_address->premise->value();
@@ -828,7 +829,7 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
     return $customer;
   }
   catch (Exception $e) {
-    commerce_qbo_ui_log_message("Unable to create new customer [" . $customer_name . "]. ", $e);
+    commerce_qbo_ui_log_message("Unable to create new customer [$customer_name]. ", $e);
     return FALSE;
   }
 }
@@ -855,10 +856,10 @@ function commerce_qbo_ui_get_payment_method_ref($payment_method) {
     return $id;
   }
   else {
-    // No method exists by the given name, try to create one and pass it back
+    // No method exists by the given name, try to create one and pass it back.
     $method = _commerce_qbo_ui_create_payment_method($payment_method);
 
-    // This is not a required field so it's ok to pass back a blank value
+    // This is not a required field so it's ok to pass back a blank value.
     return $method ? $method->Id : '';
   }
 }
@@ -883,7 +884,7 @@ function _commerce_qbo_ui_create_payment_method($payment_method) {
     return $method;
   }
   catch (Exception $e) {
-    commerce_qbo_ui_log_message("Unable to create new customer [" . $payment_method . "]. ", $e);
+    commerce_qbo_ui_log_message("Unable to create new payment method [$payment_method]. ", $e);
     return FALSE;
   }
 }

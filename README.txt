@@ -26,7 +26,7 @@ how and what kind of data gets sent to their QuickBooks Online account.
 REQUIREMENTS
 ------------
 
-This module requires teh following modules:
+This module requires the following modules:
 
  * Quickbooks Online API (https://www.drupal.org/project/qbo_api)
  * Drupal Commerce (https://www.drupal.org/project/commerce)
