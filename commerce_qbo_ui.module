@@ -10,7 +10,7 @@
 function commerce_qbo_ui_help($path, $arg) {
   switch($path) {
     case 'admin/help/commerce_qbo_ui':
-      $filepath = dirname(__FILE) . '/README.txt';
+      $filepath = dirname(__FILE__) . '/README.txt';
 
       if (file_exists($filepath)) {
         $readme = file_get_contents($filepath);

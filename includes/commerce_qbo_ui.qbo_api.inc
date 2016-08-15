@@ -63,7 +63,7 @@ function commerce_qbo_ui_start_txn($order_id, $qb_report) {
   catch (Exception $e) {
     // We watchdog the error in this case because this is considered to be a
     // critical failure and the site admin shouldn't miss it if it happens.
-    $message = t('Couldn\'t connect to QuickBooks.  Verify that your API tokens are correct, your connection is secure and all services are running. ');
+    $message = t("Couldn't connect to QuickBooks.  Verify that your API tokens are correct, your connection is secure and all services are running. ");
     watchdog('commerce_qbo_ui', $message . $e->getMessage(), array(), WATCHDOG_CRITICAL);
     commerce_qbo_ui_log_message($message, $e);
     return TRANSACTION_FAILURE;
@@ -117,6 +117,7 @@ function commerce_qbo_ui_route_txn($qb_report) {
 function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client) {
 // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPCreditMemo();
+  $sanitize = array('sanitize' => TRUE);
 
   // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -133,9 +134,9 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
 
   // Pass in the non-mandatory values now.
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
-  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
-  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
-  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value($sanitize);
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value($sanitize);
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value($sanitize);
 
   // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPCreditMemo', $txn, $order);
@@ -168,6 +169,7 @@ function commerce_qbo_ui_IPPCreditMemo($order, $qb_report, $txn_class, &$client)
 function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
 // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPEstimate();
+  $sanitize = array('sanitize' => TRUE);
 
   // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -184,9 +186,9 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
 
   // Pass in non-mandatory values (generic).
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
-  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
-  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
-  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value($sanitize);
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value($sanitize);
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value($sanitize);
 
   // Pass in non-mandatory value (specific).
   $shipping_date = $ewr->commerce_qbo_ui_shipping_date->value();
@@ -229,6 +231,7 @@ function commerce_qbo_ui_IPPEstimate($order, $qb_report, $txn_class, &$client) {
 function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
   // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPInvoice();
+  $sanitize = array('sanitize' => TRUE);
 
   // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -245,9 +248,9 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
 
   // Pass in non-mandatory values (generic).
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
-  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
-  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
-  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value($sanitize);
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value($sanitize);
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value($sanitize);
 
   // Pass in non-mandatory value (specific).
   $shipping_date = $ewr->commerce_qbo_ui_shipping_date->value();
@@ -264,10 +267,10 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
   }
 
   $ewo = entity_metadata_wrapper('commerce_order', $order);
-  $bill_email = check_plain($ewo->mail->value());
+  $bill_email = $ewo->mail->value($sanitize);
   if (!empty($bill_email)) {
     $txn->BillEmail = new \Intuit\Ipp\Data\IPPEmailAddress();
-    $txn->BillEmail->Address = check_plain($ewo->mail->value());
+    $txn->BillEmail->Address = $ewo->mail->value($sanitize);
   }
 
   // Attach any tax data to the tranasction.
@@ -304,6 +307,7 @@ function commerce_qbo_ui_IPPInvoice($order, $qb_report, $txn_class, &$client) {
 function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
+  $sanitize = array('sanitize' => TRUE);
 
   // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPPayment();
@@ -323,15 +327,15 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
 
   // Deposit account.
   if ($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value($sanitize);
   }
   else {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value($sanitize);
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
   // Memo.
-  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value($sanitize);
 
   // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPPayment', $txn, $order);
@@ -364,6 +368,7 @@ function commerce_qbo_ui_IPPPayment($order, $qb_report, $txn_class, &$client) {
 function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
   // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPRefundReceipt();
+  $sanitize = array('sanitize' => TRUE);
 
   // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -381,17 +386,17 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
   // Set Refund Account.
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
   if ($ewr->commerce_qbo_ui_refund_account->value() == NULL) {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_refund_acc_s->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_refund_acc_s->value($sanitize);
   }
   else {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_refund_account->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_refund_account->value($sanitize);
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
   // Pass in non-mandatory values (generic).
-  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
-  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
-  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value($sanitize);
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value($sanitize);
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value($sanitize);
 
   // Allow modules to alter the QuickBooks object before we pass the transaction.
   drupal_alter('commerce_qbo_ui_IPPRefund', $txn, $order);
@@ -424,6 +429,7 @@ function commerce_qbo_ui_IPPRefund($order, $qb_report, $txn_class, &$client) {
 function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$client) {
 // Initialize the transaction object.
   $txn = new \Intuit\Ipp\Data\IPPSalesReceipt();
+  $sanitize = array('sanitize' => TRUE);
 
   // Attach the customer to the transaction.
   $txn->CustomerRef = commerce_qbo_ui_get_customer_id($order);
@@ -441,19 +447,19 @@ function commerce_qbo_ui_IPPSalesReceipt($order, $qb_report, $txn_class, &$clien
 
   // Pass in non-mandatory values (generic).
   $ewr = entity_metadata_wrapper('qb_report', $qb_report);
-  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value();
-  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value();
-  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value();
+  $txn->PrivateNote = $ewr->commerce_qbo_ui_memo->value($sanitize);
+  $txn->CustomerMemo = $ewr->commerce_qbo_ui_message->value($sanitize);
+  $txn->PONumber = $ewr->commerce_qbo_ui_po_number->value($sanitize);
 
   // Pass in non-mandatory value (specific).
   $ewo = entity_metadata_wrapper('commerce_order', $order);
   $payment_method = _commerce_qbo_ui_get_payment_method($ewo);
   $txn->PaymentMethodRef = commerce_qbo_ui_get_payment_method_ref($payment_method);
   if ($ewr->commerce_qbo_ui_deposit_account->value() == NULL) {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_acc_s->value($sanitize);
   }
   else {
-    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value();
+    $deposit_account_ref = $ewr->commerce_qbo_ui_deposit_account->value($sanitize);
   }
   $txn->DepositToAccountRef = $deposit_account_ref;
 
@@ -614,7 +620,7 @@ function _commerce_qbo_ui_get_payment_method($order) {
     }
   }
 
-  return $payment_method;
+  return check_plain($payment_method);
 }
 
 /**
@@ -706,12 +712,12 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
   $new_item->Description = $description;
 
   // Calculate Unit price for this item.
-  $line_rate = $qb_collection->c_qbo_ui_line_rate->value();
+  $line_rate = $qb_collection->c_qbo_ui_line_rate->value(array('sanitize' => TRUE));
   if (!empty($line_rate)) {
     $new_item->UnitPrice = $line_rate;
   }
   else {
-    $new_item->UnitPrice = $line_item->commerce_unit_price->amount_decimal->value();
+    $new_item->UnitPrice = $line_item->commerce_unit_price->amount_decimal->value(array('sanitize' => TRUE));
   }
 
   // Get the default account to deposit funds from the sale of this Item to.
@@ -744,9 +750,10 @@ function _commerce_qbo_ui_create_item($item_name, $description, $line_item, $qb_
 function commerce_qbo_ui_get_customer_id($order) {
   // Wrap the order and report.
   $ewo = entity_metadata_wrapper('commerce_order', $order);
+  $sanitize = array('sanitize' => TRUE);
   
-  $customer_name = check_plain($ewo->commerce_customer_billing->commerce_customer_address->name_line->value());
-  $email = check_plain($ewo->mail->value());
+  $customer_name = addslashes($ewo->commerce_customer_billing->commerce_customer_address->name_line->value($sanitize));
+  $email = $ewo->mail->value($sanitize);
 
   $query = "SELECT Id FROM Customer WHERE PrimaryEmailAddr = '$email'";
   $customers = qbo_api_query($query, TRUE);
@@ -795,30 +802,31 @@ function commerce_qbo_ui_get_customer_id($order) {
  */
 function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
   $client = qbo_api_client();
+  $sanitize = array('sanitize' => TRUE);
 
   // Main identifiers.
   $new_customer = new \Intuit\Ipp\Data\IPPCustomer();
   $new_customer->DisplayName = $customer_name;
   $new_customer->PrimaryEmailAddr = new \Intuit\Ipp\Data\IPPEmailAddress();
-  $new_customer->PrimaryEmailAddr->Address = check_plain($ewo->mail->value());
+  $new_customer->PrimaryEmailAddr->Address = $ewo->mail->value($sanitize);
 
   // Address (Minimal, Country, State/Province and Postal Code).
   $new_customer->BillAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
-  $new_customer->BillAddr->Line1 = $ewo->commerce_customer_billing->commerce_customer_address->thoroughfare->value();
-  $new_customer->BillAddr->Line2 = $ewo->commerce_customer_billing->commerce_customer_address->premise->value();
-  $new_customer->BillAddr->Country = $ewo->commerce_customer_billing->commerce_customer_address->country->value();
-  $new_customer->BillAddr->CountrySubDivisionCode = $ewo->commerce_customer_billing->commerce_customer_address->administrative_area->value();
-  $new_customer->BillAddr->City = $ewo->commerce_customer_billing->commerce_customer_address->locality->value();
-  $new_customer->BillAddr->PostalCode = $ewo->commerce_customer_billing->commerce_customer_address->postal_code->value();
+  $new_customer->BillAddr->Line1 = $ewo->commerce_customer_billing->commerce_customer_address->thoroughfare->value($sanitize);
+  $new_customer->BillAddr->Line2 = $ewo->commerce_customer_billing->commerce_customer_address->premise->value($sanitize);
+  $new_customer->BillAddr->Country = $ewo->commerce_customer_billing->commerce_customer_address->country->value($sanitize);
+  $new_customer->BillAddr->CountrySubDivisionCode = $ewo->commerce_customer_billing->commerce_customer_address->administrative_area->value($sanitize);
+  $new_customer->BillAddr->City = $ewo->commerce_customer_billing->commerce_customer_address->locality->value($sanitize);
+  $new_customer->BillAddr->PostalCode = $ewo->commerce_customer_billing->commerce_customer_address->postal_code->value($sanitize);
 
   // Shipping Address.
   $new_customer->ShipAddr = new \Intuit\Ipp\Data\IPPPhysicalAddress();
-  $new_customer->ShipAddr->Line1 = $ewo->commerce_customer_shipping->commerce_customer_address->thoroughfare->value();
-  $new_customer->ShipAddr->Line2 = $ewo->commerce_customer_shipping->commerce_customer_address->premise->value();
-  $new_customer->ShipAddr->Country = $ewo->commerce_customer_shipping->commerce_customer_address->country->value();
-  $new_customer->ShipAddr->CountrySubDivisionCode = $ewo->commerce_customer_shipping->commerce_customer_address->administrative_area->value();
-  $new_customer->ShipAddr->City = $ewo->commerce_customer_shipping->commerce_customer_address->locality->value();
-  $new_customer->ShipAddr->PostalCode = $ewo->commerce_customer_shipping->commerce_customer_address->postal_code->value();
+  $new_customer->ShipAddr->Line1 = $ewo->commerce_customer_shipping->commerce_customer_address->thoroughfare->value($sanitize);
+  $new_customer->ShipAddr->Line2 = $ewo->commerce_customer_shipping->commerce_customer_address->premise->value($sanitize);
+  $new_customer->ShipAddr->Country = $ewo->commerce_customer_shipping->commerce_customer_address->country->value($sanitize);
+  $new_customer->ShipAddr->CountrySubDivisionCode = $ewo->commerce_customer_shipping->commerce_customer_address->administrative_area->value($sanitize);
+  $new_customer->ShipAddr->City = $ewo->commerce_customer_shipping->commerce_customer_address->locality->value($sanitize);
+  $new_customer->ShipAddr->PostalCode = $ewo->commerce_customer_shipping->commerce_customer_address->postal_code->value($sanitize);
 
   // Allow external modules to alter the object before the customer is created.
   drupal_alter('commerce_qbo_ui_create_customer', $new_customer, $customer_name, $ewo);
@@ -844,7 +852,7 @@ function _commerce_qbo_ui_create_customer($customer_name, $ewo) {
  *   Blank if no method exists and we couldn't create one, the ref ID otherwise
  */
 function commerce_qbo_ui_get_payment_method_ref($payment_method) {
-  $query = "SELECT Id FROM PaymentMethod WHERE Name = '" . check_plain($payment_method) . "'";
+  $query = "SELECT Id FROM PaymentMethod WHERE Name = '$payment_method'";
 
   $payment_methods = qbo_api_query($query, TRUE);
 
