@@ -102,7 +102,7 @@ function commerce_qbo_ui_menu() {
       'file' => 'includes/commerce_qbo_ui.qb_reports.inc',
     );
   }
-  $items['admin/commerce/commerce_qbo_ui/qb_reports/%qb_report'] = array(
+  $items['admin/commerce/commerce_qbo_ui/qb_reports/%commerce_qbo_ui_qbreport'] = array(
     'title callback' => 'commerce_qbo_ui_qb_report_title',
     'title arguments' => array(4),
     'page callback' => 'commerce_qbo_ui_qb_report_form_wrapper',
@@ -112,13 +112,13 @@ function commerce_qbo_ui_menu() {
     'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
     'file' => 'includes/commerce_qbo_ui.qb_reports.inc',
   );
-  $items['admin/commerce/commerce_qbo_ui/qb_reports/%qb_report/edit'] = array(
+  $items['admin/commerce/commerce_qbo_ui/qb_reports/%commerce_qbo_ui_qbreport/edit'] = array(
     'title' => 'Edit',
     'type' => MENU_DEFAULT_LOCAL_TASK,
     'weight' => -10,
     'context' => MENU_CONTEXT_PAGE | MENU_CONTEXT_INLINE,
   );
-  $items['admin/commerce/commerce_qbo_ui/qb_reports/%qb_report/delete'] = array(
+  $items['admin/commerce/commerce_qbo_ui/qb_reports/%commerce_qbo_ui_qbreport/delete'] = array(
     'title' => 'Delete',
     'page callback' => 'commerce_qbo_ui_qb_report_delete_form_wrapper',
     'page arguments' => array(4),
@@ -404,11 +404,12 @@ function commerce_qbo_ui_get_sr_row($form, &$form_state) {
 
 /**
  * Used to return a single qb_report entity to menu items
+ * Can't be named qb_report_load due to overlapping hook_ENTITY_TYPE_load().
  *
  * @param $rtid
  * @return bool|mixed
  */
-function qb_report_load($rtid) {
+function commerce_qbo_ui_qbreport_load($rtid) {
   if (empty($rtid)) {
     return FALSE;
   }
@@ -715,7 +716,7 @@ function _commerce_qbo_ui_generate_sr_rows(DatabaseStatementInterface $reports, 
  */
 function _commerce_qbo_ui_clear_sr_by_id($id) {
   // Update the 'delete' column to a 1 for the report with the given ID.
-  $result = db_update('commerce_qbo_ui_staged_report')
+  db_update('commerce_qbo_ui_staged_report')
     ->fields(array('deleted' => 1))
     ->condition('rid', $id, '=')
     ->execute();

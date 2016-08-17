@@ -109,7 +109,9 @@ function _commerce_qbo_ui_configure_line_item_field($bundle) {
   }
 
   $t = get_t();
-  $module = "c_qbo_ui"; // Shortened to comply with 32 char max. for field names.
+
+  // Shortened to comply with 32 char max. for field names.
+  $module = "c_qbo_ui";
 
   // Get static caches if they exist
   $line_item_types = &drupal_static(__FUNCTION__ . '_line_item_types');

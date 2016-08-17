@@ -129,7 +129,7 @@ function commerce_qbo_ui_rule_action_report_options() {
 function commerce_qbo_ui_send_report($order, $rtid) {
   // We need to verify that the passed in parameter is the correct type.
   $order_id = commerce_qbo_ui_check_order($order);
-  $qb_report = qb_report_load($rtid);
+  $qb_report = commerce_qbo_ui_qbreport_load($rtid);
 
   $success = FALSE;
 
