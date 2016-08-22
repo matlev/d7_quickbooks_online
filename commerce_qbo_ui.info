@@ -8,6 +8,7 @@ configure = admin/commerce/commerce_qbo_ui/config
 ; Dependencies
 dependencies[] = qbo_api
 dependencies[] = commerce
+dependencies[] = commerce_line_item
 dependencies[] = rules
 dependencies[] = field_collection
 dependencies[] = entity
