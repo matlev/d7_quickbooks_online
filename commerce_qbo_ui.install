@@ -1086,3 +1086,59 @@ function _commerce_qbo_ui_fields() {
 
   return $fields;
 }
+
+/**
+ * Implements hook_update_N().
+ *
+ * Increases the max character limit for the commerce_qbo_ui_product_service
+ * field from 63 to 255.  This was done since chaining multiple tokens together
+ * to create the desired Product/Service name takes up a lot of text space.
+ *
+ * @return null|string
+ *
+ * @throws \DrupalUpdateException
+ */
+function commerce_qbo_ui_update_7100() {
+  _commerce_qbo_ui_field_maxlength_fix('c_qbo_ui_product_service');
+
+  return t('The Product/Service field can now container 255 characters.');
+
+  // An error occurred when updating the commerce_qbo_ui_product_service field.
+  throw new DrupalUpdateException('commerce_qbo_ui_product_service failed to update.  Check the field_collection module, or contact the maintainer of this module.');
+}
+
+/**
+ * A helper function to easily update the max length of a textfield field.
+ *
+ * @param $field_name
+ *   The name of the field.
+ * @param int $maxlength
+ *   The value to change the maxlength to.  Default 255.
+ *
+ * @url http://nathan.rambeck.org/blog/42-modify-drupal-7-text-field-maximum-length
+ */
+function _commerce_qbo_ui_field_maxlength_fix($field_name, $maxlength = 255) {
+  $field_table = 'field_data_' . $field_name;
+  $field_revision_table = 'field_revision_' . $field_name;
+  $field_column = $field_name . '_value';
+
+  // Alter value field length in fields table.
+  db_query("UPDATE `{$field_table}` SET `{$field_column}`=SUBSTR(`{$field_column}`, 0, {$maxlength})");
+  db_query("ALTER TABLE `{$field_table}` CHANGE `{$field_column}` `{$field_column}` VARCHAR( {$maxlength} )");
+
+  // Alter value field length in fields revision table.
+  db_query("UPDATE `{$field_revision_table}` SET `{$field_column}`=SUBSTR(`{$field_column}`, 0, {$maxlength})");
+  db_query("ALTER TABLE `{$field_revision_table}` CHANGE `{$field_column}` `{$field_column}` VARCHAR( {$maxlength} )");
+
+  // Update field config with new max length.
+  $result = db_query("SELECT CAST(`data` AS CHAR(10000) CHARACTER SET utf8) FROM `field_config` WHERE field_name = '{$field_name}'");
+  $config = $result->fetchField();
+  $config_array = unserialize($config);
+  $config_array['settings']['max_length'] = $maxlength;
+  $config = serialize($config_array);
+
+  db_update('field_config')
+    ->fields(array('data' => $config))
+    ->condition('field_name', $field_name)
+    ->execute();
+}
